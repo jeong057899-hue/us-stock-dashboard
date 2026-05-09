@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import feedparser
+import requests
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
@@ -41,7 +42,7 @@ section[data-testid="stSidebar"] {
     padding: 15px 17px;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-    min-height: 112px;
+    min-height: 105px;
 }
 
 [data-testid="stMetricLabel"] {
@@ -50,7 +51,7 @@ section[data-testid="stSidebar"] {
 }
 
 [data-testid="stMetricValue"] {
-    font-size: 1.58rem;
+    font-size: 1.50rem;
     font-weight: 750;
 }
 
@@ -94,6 +95,7 @@ section[data-testid="stSidebar"] {
     min-height: 132px;
     max-height: 132px;
     overflow: hidden;
+    margin-bottom: 10px;
 }
 
 .news-card:hover {
@@ -189,6 +191,7 @@ button {
 def get_kst_now():
     return datetime.now(ZoneInfo("Asia/Seoul"))
 
+
 # =========================
 # Sidebar
 # =========================
@@ -207,7 +210,7 @@ if st.sidebar.button("🔄 수동 새로고침", use_container_width=True):
 st.sidebar.divider()
 
 custom_symbol = st.sidebar.text_input(
-    "🔎 티커 검색",
+    "🔎 빠른 티커 추가",
     placeholder="예: NVDA, QQQ, SOXL, PLTR, BTC-USD"
 ).upper().strip()
 
@@ -236,6 +239,7 @@ economic_memo = st.sidebar.text_area(
 st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
 st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
+
 
 # =========================
 # 자산 목록
@@ -279,7 +283,8 @@ tickers.update(market_assets)
 tickers.update(watchlist_assets)
 
 if custom_symbol:
-    tickers[f"검색 종목: {custom_symbol}"] = custom_symbol
+    tickers[f"검색 추가: {custom_symbol}"] = custom_symbol
+
 
 # =========================
 # 데이터 함수
@@ -340,10 +345,12 @@ def get_price_data(ticker_dict):
 
     return df_result
 
+
 @st.cache_data(ttl=60)
 def get_chart_data(symbol, period, interval):
     stock = yf.Ticker(symbol)
     return stock.history(period=period, interval=interval)
+
 
 @st.cache_data(ttl=300)
 def get_market_news():
@@ -402,17 +409,121 @@ def get_market_news():
 
     return pd.DataFrame(news_list[:16])
 
+
+@st.cache_data(ttl=300)
+def search_yahoo_symbols(query):
+    if not query:
+        return []
+
+    url = "https://query1.finance.yahoo.com/v1/finance/search"
+    params = {
+        "q": query,
+        "quotesCount": 10,
+        "newsCount": 0,
+        "lang": "en-US",
+        "region": "US"
+    }
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=8)
+        data = r.json()
+        quotes = data.get("quotes", [])
+
+        results = []
+
+        for q in quotes:
+            symbol = q.get("symbol")
+            name = q.get("shortname") or q.get("longname") or ""
+            exchange = q.get("exchDisp") or q.get("exchange") or ""
+            quote_type = q.get("quoteType") or ""
+
+            if quote_type in ["EQUITY", "ETF"] and symbol:
+                results.append({
+                    "symbol": symbol,
+                    "name": name,
+                    "exchange": exchange,
+                    "type": quote_type
+                })
+
+        return results
+
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=120)
+def get_searched_stock_data(symbol):
+    try:
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period="1mo")
+        info = stock.info
+
+        if hist.empty or len(hist) < 2:
+            return None
+
+        current = hist["Close"].iloc[-1]
+        prev = hist["Close"].iloc[-2]
+        change = ((current - prev) / prev) * 100
+        volume = hist["Volume"].iloc[-1]
+        avg_volume = hist["Volume"].iloc[-21:-1].mean()
+
+        volume_ratio = None
+        if avg_volume and avg_volume > 0:
+            volume_ratio = volume / avg_volume
+
+        market_cap = info.get("marketCap")
+        if market_cap:
+            market_cap_text = f"{market_cap / 1_000_000_000:.2f}B"
+        else:
+            market_cap_text = "정보 없음"
+
+        return {
+            "symbol": symbol,
+            "name": info.get("shortName") or info.get("longName") or symbol,
+            "price": round(current, 2),
+            "change": round(change, 2),
+            "volume": int(volume) if not pd.isna(volume) else 0,
+            "volume_ratio": round(volume_ratio, 2) if volume_ratio else None,
+            "market_cap": market_cap_text,
+            "sector": info.get("sector", "정보 없음"),
+            "industry": info.get("industry", "정보 없음"),
+            "recommendation": info.get("recommendationKey", "정보 없음"),
+            "target_price": info.get("targetMeanPrice"),
+        }
+
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=300)
+def get_stock_specific_news(symbol):
+    try:
+        rss_url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&region=US&lang=en-US"
+        feed = feedparser.parse(rss_url)
+
+        news = []
+
+        for entry in feed.entries[:5]:
+            news.append({
+                "title": entry.title,
+                "link": entry.link,
+                "time": entry.get("published", "")
+            })
+
+        return news
+
+    except Exception:
+        return []
+
+
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
     if row.empty:
         return None, None
     return row["현재가"].values[0], row["변동률(%)"].values[0]
 
-def get_row_by_ticker(dataframe, ticker):
-    row = dataframe[dataframe["티커"] == ticker]
-    if row.empty:
-        return None
-    return row.iloc[0]
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -422,6 +533,7 @@ def safe_metric(label, value, delta=None):
     else:
         st.metric(label, value, f"{delta}%")
 
+
 def color_change(value):
     if pd.isna(value):
         return ""
@@ -430,6 +542,102 @@ def color_change(value):
     if value < 0:
         return "color: #ef4444; font-weight: 700"
     return ""
+
+
+def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_change, dxy_change, smh_change):
+    score = 0
+    reasons = []
+
+    change = stock_data.get("change")
+    volume_ratio = stock_data.get("volume_ratio")
+    sector = stock_data.get("sector", "")
+    industry = stock_data.get("industry", "")
+    recommendation = stock_data.get("recommendation", "")
+
+    if change is not None:
+        if change >= 3:
+            score += 2
+            reasons.append("당일 강한 상승 흐름")
+        elif change >= 1:
+            score += 1
+            reasons.append("양호한 상승 흐름")
+        elif change <= -3:
+            score -= 2
+            reasons.append("급락 구간")
+        elif change <= -1:
+            score -= 1
+            reasons.append("약세 흐름")
+
+    if volume_ratio is not None:
+        if volume_ratio >= 2:
+            score += 2
+            reasons.append("평균 대비 거래량 급증")
+        elif volume_ratio >= 1.5:
+            score += 1
+            reasons.append("거래량 증가")
+
+    if qqq_change is not None and qqq_change > 0:
+        score += 1
+        reasons.append("나스닥 우호적")
+    elif qqq_change is not None and qqq_change < -1:
+        score -= 1
+        reasons.append("나스닥 약세 부담")
+
+    if vix_price is not None and vix_price > 25:
+        score -= 2
+        reasons.append("VIX 고위험 구간")
+    elif vix_price is not None and vix_price < 18:
+        score += 1
+        reasons.append("VIX 안정 구간")
+
+    if tnx_change is not None and tnx_change > 1:
+        score -= 1
+        reasons.append("금리 상승 부담")
+
+    if dxy_change is not None and dxy_change > 0.5:
+        score -= 1
+        reasons.append("달러 강세 부담")
+
+    tech_words = ["Technology", "Semiconductor", "Software", "Information Technology", "Electronic"]
+    if any(word.lower() in f"{sector} {industry}".lower() for word in tech_words):
+        if smh_change is not None and smh_change > 1:
+            score += 1
+            reasons.append("기술/반도체 섹터 우호")
+
+    news_text = " ".join([n["title"] for n in stock_news]).lower()
+
+    positive_words = ["beat", "growth", "surge", "rally", "upgrade", "outperform", "strong", "raises"]
+    negative_words = ["miss", "cut", "drop", "lawsuit", "risk", "weak", "downgrade", "fall", "warning"]
+
+    if any(w in news_text for w in positive_words):
+        score += 1
+        reasons.append("최근 뉴스 긍정 신호")
+    if any(w in news_text for w in negative_words):
+        score -= 1
+        reasons.append("최근 뉴스 리스크 신호")
+
+    if recommendation in ["buy", "strong_buy"]:
+        score += 1
+        reasons.append("애널리스트 컨센서스 우호")
+    elif recommendation in ["sell", "underperform"]:
+        score -= 2
+        reasons.append("애널리스트 컨센서스 부정적")
+
+    if score >= 4:
+        final_signal = "🟢 관심 구간"
+        comment = "시장 환경과 종목 모멘텀이 비교적 우호적입니다. 다만 장기 투자 관점에서는 분할 접근과 추가 확인이 필요합니다."
+    elif score >= 1:
+        final_signal = "🟡 관망 / 추적"
+        comment = "일부 긍정 신호는 있으나 확신도는 높지 않습니다. 뉴스, 거래량, 실적 방향성을 추가 확인하는 구간입니다."
+    else:
+        final_signal = "🔴 리스크 경계"
+        comment = "현재 데이터 기준으로는 적극 접근보다 리스크 관리와 추가 확인이 우선입니다."
+
+    if not reasons:
+        reasons.append("특이 신호 제한")
+
+    return final_signal, comment, reasons, score
+
 
 def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     candidate_df = dataframe[dataframe["티커"].isin(watchlist_assets.values())].copy()
@@ -511,6 +719,7 @@ def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     result = pd.DataFrame(scores)
     return result.sort_values("점수", ascending=False)
 
+
 # =========================
 # 데이터 로드
 # =========================
@@ -530,6 +739,7 @@ oil_price, oil_change = get_metric(df, "CL=F")
 gold_price, gold_change = get_metric(df, "GC=F")
 
 candidate_df = score_candidates(df, news_df, vix_price, tnx_change, smh_change)
+
 
 # =========================
 # 시장 상태 판단
@@ -566,6 +776,7 @@ else:
     market_status = "중립"
     market_emoji = "🟡"
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
+
 
 # =========================
 # 오늘의 시장 평가 텍스트
@@ -610,11 +821,10 @@ def build_market_briefing():
 이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
 """
 
-# =========================
-# 팝업 / 브리핑 버튼
-# =========================
+
 if "show_market_briefing" not in st.session_state:
     st.session_state.show_market_briefing = False
+
 
 # =========================
 # Header
@@ -653,6 +863,7 @@ else:
         with st.expander("오늘의 실시간 시장현황", expanded=True):
             st.markdown(build_market_briefing())
 
+
 # =========================
 # Key Metrics
 # =========================
@@ -682,6 +893,7 @@ for row_start in range(0, len(top_metric_list), 5):
             safe_metric(label, price, change)
 
 st.markdown("")
+
 
 # =========================
 # Main Layout
@@ -718,7 +930,7 @@ with left:
         fig.update_layout(
             title=f"{selected_name} ({selected_symbol})",
             template="plotly_dark",
-            height=560,
+            height=360,
             xaxis_rangeslider_visible=False,
             margin=dict(l=12, r=12, t=42, b=12),
             paper_bgcolor="rgba(0,0,0,0)",
@@ -729,6 +941,119 @@ with left:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("차트 데이터를 불러오지 못했습니다.")
+
+    # =========================
+    # 종목 검색 분석
+    # =========================
+    st.markdown('<div class="panel-title">🔍 종목 검색 분석</div>', unsafe_allow_html=True)
+
+    stock_search_query = st.text_input(
+        "종목명 또는 티커 검색",
+        placeholder="예: SLDP, Solid Power, NVDA, Tesla, SOXL",
+        key="stock_search_box"
+    )
+
+    if stock_search_query:
+        search_results = search_yahoo_symbols(stock_search_query)
+
+        if search_results:
+            option_labels = [
+                f"{item['symbol']} | {item['name']} | {item['exchange']} | {item['type']}"
+                for item in search_results
+            ]
+
+            selected_option = st.selectbox(
+                "검색 결과 선택",
+                option_labels,
+                key="selected_search_result"
+            )
+
+            selected_index = option_labels.index(selected_option)
+            selected_symbol_for_analysis = search_results[selected_index]["symbol"]
+
+            stock_data = get_searched_stock_data(selected_symbol_for_analysis)
+            stock_news = get_stock_specific_news(selected_symbol_for_analysis)
+
+            if stock_data:
+                signal, comment, reasons, score = analyze_searched_stock(
+                    stock_data,
+                    stock_news,
+                    qqq_change,
+                    vix_price,
+                    tnx_change,
+                    dxy_change,
+                    smh_change
+                )
+
+                s1, s2, s3, s4 = st.columns(4)
+
+                with s1:
+                    st.metric("현재가", stock_data["price"], f"{stock_data['change']}%")
+
+                with s2:
+                    st.metric("거래량", f"{stock_data['volume']:,}")
+
+                with s3:
+                    if stock_data["volume_ratio"]:
+                        st.metric("평균 대비 거래량", f"{stock_data['volume_ratio']}배")
+                    else:
+                        st.metric("평균 대비 거래량", "N/A")
+
+                with s4:
+                    st.metric("판단", signal)
+
+                st.markdown(
+                    f"""
+                    <div class="panel">
+                        <div class="comment-title">{stock_data['name']} ({selected_symbol_for_analysis})</div>
+                        <div class="comment-desc">
+                            시가총액: {stock_data['market_cap']}<br>
+                            섹터: {stock_data['sector']}<br>
+                            산업: {stock_data['industry']}<br>
+                            애널리스트 평가: {stock_data['recommendation']}<br>
+                            평균 목표가: {stock_data['target_price']}
+                        </div>
+                        <br>
+                        <div class="comment-title">📌 종합 해석</div>
+                        <div class="comment-desc">{comment}</div>
+                        <div class="comment-signal">점수: {score} / 신호: {signal}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.markdown("**분석 근거**")
+                for reason in reasons:
+                    st.markdown(f"- {reason}")
+
+                st.markdown("**최신 관련 뉴스**")
+
+                if stock_news:
+                    news_cols_for_stock = st.columns(2)
+                    for idx, news in enumerate(stock_news[:4]):
+                        with news_cols_for_stock[idx % 2]:
+                            st.markdown(
+                                f"""
+                                <div class="news-card">
+                                    <div class="news-title">
+                                        <a href="{news['link']}" target="_blank">{news['title']}</a>
+                                    </div>
+                                    <div class="news-link">뉴스 보기 →</div>
+                                    <div class="news-meta">{news['time']}</div>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                else:
+                    st.info("해당 종목 관련 뉴스를 불러오지 못했습니다.")
+
+                st.caption("이 판단은 데이터 기반 시장 관찰 신호이며, 투자 권유 또는 투자 자문이 아닙니다.")
+
+            else:
+                st.warning("해당 종목 데이터를 불러오지 못했습니다. 티커를 다시 확인하세요.")
+
+        else:
+            st.warning("검색 결과가 없습니다. 한글명보다는 영문명 또는 티커를 입력해 주세요.")
 
 with middle:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
@@ -797,6 +1122,7 @@ with right:
         )
     else:
         st.info("관심 후보 데이터 없음")
+
 
 # =========================
 # 실시간 시장 코멘트
@@ -875,6 +1201,7 @@ for idx, (title, desc, signal) in enumerate(comments):
             unsafe_allow_html=True
         )
 
+
 # =========================
 # News
 # =========================
@@ -916,6 +1243,7 @@ if not news_df.empty:
 else:
     st.warning("뉴스 데이터를 불러오지 못했습니다.")
 
+
 # =========================
 # Market Table
 # =========================
@@ -945,4 +1273,4 @@ with table_right:
     )
 
 st.caption(f"마지막 갱신 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
-st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다. 표시되는 관심 후보는 매수·매도 추천이 아니라 시장 관찰용 신호입니다.")
+st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다. 표시되는 관심 후보와 종목 분석은 매수·매도 추천이 아니라 시장 관찰용 신호입니다.")
