@@ -145,6 +145,29 @@ section[data-testid="stSidebar"] {
     font-weight: 800;
 }
 
+.comment-row {
+    border-bottom: 1px solid #26364c;
+    padding: 9px 0;
+}
+
+.comment-title {
+    font-weight: 800;
+    font-size: 0.9rem;
+}
+
+.comment-desc {
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    line-height: 1.35;
+    margin-top: 3px;
+}
+
+.comment-signal {
+    font-size: 0.77rem;
+    color: #38bdf8;
+    margin-top: 3px;
+}
+
 div[data-testid="stDataFrame"] {
     border: 1px solid #26364c;
     border-radius: 14px;
@@ -559,6 +582,83 @@ with right:
         <div>DXY: <b>{dxy_price}</b></div>
     </div>
     """, unsafe_allow_html=True)
+
+# =========================
+# Real-time Comments
+# =========================
+st.markdown('<div class="panel-title">🧠 실시간 시장 코멘트</div>', unsafe_allow_html=True)
+
+comments = []
+
+if smh_change is not None:
+    if smh_change >= 3:
+        comments.append(("🟢 반도체 강세", "SMH가 강하게 상승 중입니다. AI/반도체 섹터 모멘텀이 우호적입니다.", "강세 관찰"))
+    elif smh_change <= -2:
+        comments.append(("🔴 반도체 약세", "SMH가 약세입니다. 성장주와 AI 관련주에 부담이 될 수 있습니다.", "주의"))
+    else:
+        comments.append(("🟡 반도체 중립", "반도체 섹터는 뚜렷한 방향성이 크지 않습니다.", "관망"))
+
+if qqq_change is not None:
+    if qqq_change >= 1.5:
+        comments.append(("🟢 나스닥 강세", "QQQ가 강세입니다. 성장주 중심 위험선호가 나타나고 있습니다.", "강세 관찰"))
+    elif qqq_change <= -1.5:
+        comments.append(("🔴 나스닥 약세", "QQQ가 약세입니다. 성장주 비중 확대는 신중할 필요가 있습니다.", "리스크 경계"))
+    else:
+        comments.append(("🟡 나스닥 중립", "QQQ는 제한적 움직임입니다. 방향성 확인이 필요합니다.", "관망"))
+
+if vix_price is not None:
+    if vix_price >= 25:
+        comments.append(("🔴 변동성 확대", "VIX가 높은 구간입니다. 시장 불안 심리가 커진 상태입니다.", "방어적 관망"))
+    elif vix_price <= 18:
+        comments.append(("🟢 변동성 안정", "VIX가 안정권입니다. 위험자산에 상대적으로 우호적인 환경입니다.", "우호적"))
+    else:
+        comments.append(("🟡 변동성 보통", "VIX는 중립 구간입니다. 급격한 공포 신호는 제한적입니다.", "관망"))
+
+if tnx_change is not None:
+    if tnx_change >= 1:
+        comments.append(("🔴 금리 상승 부담", "10년물 금리가 상승 중입니다. 빅테크와 성장주 밸류에이션에 부담이 될 수 있습니다.", "주의"))
+    elif tnx_change <= -1:
+        comments.append(("🟢 금리 하락 우호", "10년물 금리가 하락 중입니다. 성장주에는 상대적으로 우호적입니다.", "우호적"))
+    else:
+        comments.append(("🟡 금리 중립", "금리 변화가 크지 않아 시장 영향은 제한적입니다.", "관망"))
+
+if dxy_change is not None:
+    if dxy_change >= 0.5:
+        comments.append(("🔴 달러 강세", "달러 인덱스가 상승 중입니다. 위험자산과 신흥시장에는 부담 요인입니다.", "주의"))
+    elif dxy_change <= -0.5:
+        comments.append(("🟢 달러 약세", "달러가 약세입니다. 위험자산 선호에 우호적일 수 있습니다.", "우호적"))
+    else:
+        comments.append(("🟡 달러 중립", "달러 움직임은 제한적입니다.", "관망"))
+
+strong_movers = df[
+    (df["변동률(%)"].notna()) &
+    (df["변동률(%)"].abs() >= 3)
+].sort_values("변동률(%)", ascending=False)
+
+if not strong_movers.empty:
+    top_mover = strong_movers.iloc[0]
+    comments.append((
+        "🚨 급등락 종목 감지",
+        f"{top_mover['이름']}({top_mover['티커']}) 변동률 {top_mover['변동률(%)']}% 감지.",
+        "추적 필요"
+    ))
+
+comments = comments[:6]
+
+comment_cols = st.columns(3)
+
+for idx, (title, desc, signal) in enumerate(comments):
+    with comment_cols[idx % 3]:
+        st.markdown(
+            f"""
+            <div class="panel">
+                <div class="comment-title">{title}</div>
+                <div class="comment-desc">{desc}</div>
+                <div class="comment-signal">판단: {signal}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # =========================
 # News
