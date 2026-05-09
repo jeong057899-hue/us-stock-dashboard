@@ -12,28 +12,42 @@ st.set_page_config(
     layout="wide"
 )
 
-# =========================
-# CSS
-# =========================
 st.markdown("""
 <style>
 .block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
+    padding-top: 1.2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
 }
-.metric-card {
-    background-color: #111827;
-    padding: 18px;
-    border-radius: 14px;
+section[data-testid="stSidebar"] {
+    background-color: #0f172a;
+}
+.card {
+    background: linear-gradient(145deg, #111827, #0b1220);
     border: 1px solid #263244;
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 0 18px rgba(0,0,0,0.25);
 }
-.news-box {
-    padding: 12px 0;
-    border-bottom: 1px solid #2a2f3a;
+.news-card {
+    background-color: #111827;
+    border: 1px solid #263244;
+    border-radius: 14px;
+    padding: 14px;
+    height: 145px;
+    overflow: hidden;
 }
-.small-text {
-    color: gray;
+.news-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.news-meta {
+    color: #9ca3af;
     font-size: 12px;
+}
+.compact-table {
+    font-size: 13px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -43,8 +57,8 @@ st.markdown("""
 # =========================
 st.sidebar.title("⚙️ 설정")
 
-auto_refresh = st.sidebar.checkbox("자동 갱신 켜기", value=False)
-refresh_seconds = st.sidebar.selectbox("자동 갱신 주기", [30, 60, 120, 300], index=1)
+auto_refresh = st.sidebar.checkbox("자동 갱신", value=False)
+refresh_seconds = st.sidebar.selectbox("갱신 주기", [30, 60, 120, 300], index=1)
 
 if auto_refresh:
     st_autorefresh(interval=refresh_seconds * 1000, key="auto_refresh")
@@ -60,6 +74,8 @@ custom_symbol = st.sidebar.text_input(
     placeholder="예: NVDA, QQQ, SOXL, PLTR, ^VIX"
 ).upper().strip()
 
+st.sidebar.markdown("---")
+
 chart_period = st.sidebar.selectbox(
     "차트 기간",
     ["1d", "5d", "1mo", "3mo", "6mo", "1y"],
@@ -73,7 +89,8 @@ chart_interval = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.caption("무료 데이터 기반: yfinance + Yahoo Finance RSS")
+st.sidebar.caption("무료 데이터 기반")
+st.sidebar.caption("yfinance + Yahoo Finance RSS")
 st.sidebar.caption("실시간 데이터는 지연될 수 있습니다.")
 
 # =========================
@@ -140,7 +157,6 @@ def get_price_data(ticker_dict):
                     "변동률(%)": None,
                     "거래량": None
                 })
-
         except Exception:
             rows.append({
                 "이름": name,
@@ -162,23 +178,15 @@ def get_market_news():
     rss_url = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
     feed = feedparser.parse(rss_url)
 
-    bullish_keywords = [
-        "surge", "gain", "rise", "beat", "record", "growth",
-        "bull", "rally", "strong", "optimism"
-    ]
-
-    bearish_keywords = [
-        "fall", "drop", "fear", "cut", "war", "inflation",
-        "selloff", "recession", "decline", "weak", "risk"
-    ]
-
+    bullish_keywords = ["surge", "gain", "rise", "beat", "record", "growth", "bull", "rally", "strong", "optimism"]
+    bearish_keywords = ["fall", "drop", "fear", "cut", "war", "inflation", "selloff", "recession", "decline", "weak", "risk"]
     fed_keywords = ["fed", "powell", "rate", "fomc", "yield"]
     ai_keywords = ["ai", "nvidia", "semiconductor", "chip", "amd", "broadcom"]
     macro_keywords = ["inflation", "cpi", "ppi", "jobs", "unemployment", "gdp"]
 
     news_list = []
 
-    for entry in feed.entries[:15]:
+    for entry in feed.entries[:8]:
         title = entry.title
         link = entry.link
         published = entry.get("published", "")
@@ -187,10 +195,9 @@ def get_market_news():
         sentiment = "🟡 중립"
 
         if any(word in lower_title for word in bullish_keywords):
-            sentiment = "🟢 긍정 가능"
-
+            sentiment = "🟢 긍정"
         if any(word in lower_title for word in bearish_keywords):
-            sentiment = "🔴 부정 가능"
+            sentiment = "🔴 부정"
 
         category = "일반"
 
@@ -213,21 +220,11 @@ def get_market_news():
 
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
+
     if row.empty:
         return None, None
 
-    price = row["현재가"].values[0]
-    change = row["변동률(%)"].values[0]
-    return price, change
-
-def color_change(value):
-    if pd.isna(value):
-        return ""
-    if value > 0:
-        return "color: #00c853"
-    elif value < 0:
-        return "color: #ff5252"
-    return ""
+    return row["현재가"].values[0], row["변동률(%)"].values[0]
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -237,6 +234,15 @@ def safe_metric(label, value, delta=None):
             st.metric(label, value)
         else:
             st.metric(label, value, f"{delta}%")
+
+def color_change(value):
+    if pd.isna(value):
+        return ""
+    if value > 0:
+        return "color: #00c853"
+    elif value < 0:
+        return "color: #ff5252"
+    return ""
 
 # =========================
 # 데이터 로드
@@ -252,16 +258,54 @@ dxy_price, dxy_change = get_metric(df, "DX-Y.NYB")
 smh_price, smh_change = get_metric(df, "SMH")
 
 # =========================
+# 시장 상태 판단
+# =========================
+risk_score = 0
+
+if qqq_change is not None:
+    risk_score += 1 if qqq_change > 0 else -1 if qqq_change < -1 else 0
+
+if spy_change is not None:
+    risk_score += 1 if spy_change > 0 else -1 if spy_change < -1 else 0
+
+if vix_price is not None:
+    risk_score += 1 if vix_price < 18 else -2 if vix_price > 25 else 0
+
+if tnx_change is not None and tnx_change > 1:
+    risk_score -= 1
+
+if dxy_change is not None and dxy_change > 0.5:
+    risk_score -= 1
+
+if smh_change is not None:
+    risk_score += 1 if smh_change > 1 else -1 if smh_change < -1 else 0
+
+if risk_score >= 3:
+    market_status = "🟢 Risk On"
+    market_comment = "성장주와 위험자산에 우호적인 환경입니다."
+elif risk_score <= -2:
+    market_status = "🔴 Risk Off"
+    market_comment = "변동성, 금리, 달러 강세 등을 경계해야 합니다."
+else:
+    market_status = "🟡 중립"
+    market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
+
+# =========================
 # 헤더
 # =========================
-st.title("📈 미국 주식 시장 인텔리전스 대시보드")
-st.caption("미국 성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 뉴스 기반 시장 판단 시스템")
+header_left, header_right = st.columns([3, 1])
+
+with header_left:
+    st.title("📈 미국 주식 시장 인텔리전스 대시보드")
+    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 뉴스 기반 시장 판단 시스템")
+
+with header_right:
+    st.metric("시장 상태", market_status)
+    st.caption(market_comment)
 
 # =========================
-# 핵심 시장 카드
+# 핵심 카드
 # =========================
-st.subheader("📌 핵심 시장 지표")
-
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 
 with c1:
@@ -271,84 +315,30 @@ with c2:
 with c3:
     safe_metric("VIX", vix_price, vix_change)
 with c4:
-    safe_metric("10년물", tnx_price, tnx_change)
+    safe_metric("10년물 금리", tnx_price, tnx_change)
 with c5:
     safe_metric("DXY", dxy_price, dxy_change)
 with c6:
     safe_metric("SMH", smh_price, smh_change)
 
-# =========================
-# 시장 상태 판단
-# =========================
-risk_score = 0
-
-if qqq_change is not None:
-    if qqq_change > 0:
-        risk_score += 1
-    elif qqq_change < -1:
-        risk_score -= 1
-
-if spy_change is not None:
-    if spy_change > 0:
-        risk_score += 1
-    elif spy_change < -1:
-        risk_score -= 1
-
-if vix_price is not None:
-    if vix_price < 18:
-        risk_score += 1
-    elif vix_price > 25:
-        risk_score -= 2
-
-if tnx_change is not None and tnx_change > 1:
-    risk_score -= 1
-
-if dxy_change is not None and dxy_change > 0.5:
-    risk_score -= 1
-
-if smh_change is not None:
-    if smh_change > 1:
-        risk_score += 1
-    elif smh_change < -1:
-        risk_score -= 1
-
-if risk_score >= 3:
-    market_status = "🟢 Risk On"
-    market_comment = "성장주와 위험자산에 우호적인 분위기입니다."
-elif risk_score <= -2:
-    market_status = "🔴 Risk Off"
-    market_comment = "변동성, 금리, 달러 강세 등으로 방어적 접근이 필요합니다."
-else:
-    market_status = "🟡 중립"
-    market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
-
-st.subheader("🧭 시장 상태")
-
-m1, m2, m3, m4 = st.columns(4)
-
-with m1:
-    st.metric("종합 판단", market_status)
-with m2:
-    st.metric("변동성 위험", "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음")
-with m3:
-    st.metric("금리 부담", "높음" if tnx_change and tnx_change > 1 else "보통")
-with m4:
-    st.metric("반도체 모멘텀", "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통")
-
-st.info(market_comment)
+st.markdown("---")
 
 # =========================
-# 메인 레이아웃
+# 메인 영역
 # =========================
-left_col, right_col = st.columns([2.2, 1])
+main_left, main_mid, main_right = st.columns([2.2, 0.9, 0.95])
 
-with left_col:
-    st.subheader("📈 실시간형 차트")
+with main_left:
+    chart_header_left, chart_header_right = st.columns([1, 1])
+
+    with chart_header_left:
+        st.subheader("📊 실시간형 차트")
 
     selected_name = st.selectbox(
-        "차트로 볼 종목",
+        "차트 종목",
         list(tickers.keys()),
-        index=1
+        index=1,
+        label_visibility="collapsed"
     )
 
     selected_symbol = tickers[selected_name]
@@ -371,83 +361,115 @@ with left_col:
         fig.update_layout(
             title=f"{selected_name} ({selected_symbol})",
             template="plotly_dark",
-            height=620,
+            height=520,
             xaxis_rangeslider_visible=False,
-            margin=dict(l=20, r=20, t=50, b=20)
+            margin=dict(l=15, r=15, t=45, b=20)
         )
 
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("차트 데이터를 불러오지 못했습니다. 티커가 정확한지 확인해 주세요.")
+        st.warning("차트 데이터를 불러오지 못했습니다.")
 
-with right_col:
-    st.subheader("📝 자동 브리핑")
+with main_mid:
+    st.subheader("🧭 시장 판단")
 
-    briefing = f"""
-    **현재 시장 상태:** {market_status}
+    st.metric("종합 판단", market_status)
+    st.metric(
+        "변동성 위험",
+        "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음",
+        f"VIX {vix_price}"
+    )
+    st.metric(
+        "금리 부담",
+        "높음" if tnx_change and tnx_change > 1 else "보통",
+        f"10Y {tnx_price}"
+    )
+    st.metric(
+        "반도체 모멘텀",
+        "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통",
+        f"SMH {smh_change}%"
+    )
 
-    **핵심 체크**
-    - QQQ: {qqq_change}%
-    - NVDA: {nvda_change}%
-    - VIX: {vix_price}
-    - 10년물 금리: {tnx_price}
-    - DXY: {dxy_price}
-    - SMH: {smh_change}%
+    st.info(market_comment)
 
-    **해석**  
-    {market_comment}
-    """
-
-    st.markdown(briefing)
-
+with main_right:
     st.subheader("🚨 급등락 감지")
 
     alert_df = df[
         (df["변동률(%)"].notna()) &
         ((df["변동률(%)"] >= 3) | (df["변동률(%)"] <= -3))
-    ]
+    ][["이름", "티커", "변동률(%)"]]
 
     if not alert_df.empty:
-        st.warning("±3% 이상 변동 종목 감지")
-        st.dataframe(alert_df[["이름", "티커", "변동률(%)"]], use_container_width=True, hide_index=True)
+        st.dataframe(alert_df, use_container_width=True, hide_index=True, height=300)
     else:
-        st.success("현재 큰 급등락 없음")
+        st.success("±3% 이상 급등락 없음")
+
+    st.subheader("📝 요약")
+    st.markdown(
+        f"""
+        - QQQ: **{qqq_change}%**
+        - NVDA: **{nvda_change}%**
+        - VIX: **{vix_price}**
+        - 10Y: **{tnx_price}**
+        - DXY: **{dxy_price}**
+        """
+    )
 
 # =========================
-# 뉴스
+# 뉴스 compact
 # =========================
 st.subheader("📰 주요 시장 뉴스")
 
 news_df = get_market_news()
 
 if not news_df.empty:
-    for _, row in news_df.iterrows():
-        st.markdown(
-            f"""
-            <div class="news-box">
-                <b>{row['분위기']} | {row['분류']}</b><br>
-                <a href="{row['링크']}" target="_blank">{row['뉴스 제목']}</a><br>
-                <span class="small-text">{row['시간']}</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    news_cols = st.columns(4)
+
+    for idx, row in news_df.head(8).iterrows():
+        with news_cols[idx % 4]:
+            st.markdown(
+                f"""
+                <div class="news-card">
+                    <div class="news-meta">{row['분위기']} | {row['분류']}</div>
+                    <div class="news-title">
+                        <a href="{row['링크']}" target="_blank">{row['뉴스 제목']}</a>
+                    </div>
+                    <br>
+                    <div class="news-meta">{row['시간']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 else:
     st.warning("뉴스 데이터를 불러오지 못했습니다.")
 
 # =========================
-# 전체 테이블
+# 전체 시장 데이터 compact
 # =========================
-with st.expander("📊 전체 시장 데이터 보기"):
-    styled_df = df.style.map(
-        color_change,
-        subset=["변동률(%)"]
+st.subheader("📊 전체 시장 데이터")
+
+table_left, table_right = st.columns(2)
+
+market_df = df.iloc[:10].copy()
+stock_df = df.iloc[10:].copy()
+
+with table_left:
+    st.caption("지수 / 거시 / 섹터")
+    st.dataframe(
+        market_df.style.map(color_change, subset=["변동률(%)"]),
+        use_container_width=True,
+        hide_index=True,
+        height=310
     )
 
+with table_right:
+    st.caption("주요 관심 종목")
     st.dataframe(
-        styled_df,
+        stock_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        height=310
     )
 
 st.caption(f"마지막 갱신 시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
