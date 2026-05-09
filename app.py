@@ -12,69 +12,190 @@ st.set_page_config(
     layout="wide"
 )
 
+# =========================
+# CSS
+# =========================
 st.markdown("""
 <style>
+:root {
+    --bg: #080d16;
+    --panel: #0f1724;
+    --panel2: #111c2d;
+    --border: #233247;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #38bdf8;
+    --yellow: #f59e0b;
+}
+
+.stApp {
+    background: radial-gradient(circle at top left, #102033 0%, #080d16 45%, #05070d 100%);
+    color: var(--text);
+}
+
 .block-container {
     padding-top: 1.2rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: 1.7rem;
+    padding-right: 1.7rem;
+    max-width: 1500px;
 }
+
 section[data-testid="stSidebar"] {
-    background-color: #0f172a;
+    background: linear-gradient(180deg, #0c1524 0%, #07101d 100%);
+    border-right: 1px solid #1e293b;
 }
-.card {
-    background: linear-gradient(145deg, #111827, #0b1220);
-    border: 1px solid #263244;
+
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #111827, #0b1322);
+    border: 1px solid #253449;
+    padding: 16px 18px;
     border-radius: 16px;
-    padding: 18px;
-    box-shadow: 0 0 18px rgba(0,0,0,0.25);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.22);
 }
+
+[data-testid="stMetricLabel"] {
+    color: #cbd5e1;
+    font-size: 0.85rem;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: 1.85rem;
+    font-weight: 750;
+}
+
+[data-testid="stMetricDelta"] {
+    font-size: 0.85rem;
+}
+
+.panel {
+    background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(9,15,27,0.96));
+    border: 1px solid #26364c;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    margin-bottom: 16px;
+}
+
+.panel-title {
+    font-size: 1.08rem;
+    font-weight: 800;
+    margin-bottom: 14px;
+    color: #f8fafc;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: rgba(34,197,94,0.10);
+    border: 1px solid rgba(34,197,94,0.35);
+    color: #86efac;
+    font-weight: 800;
+    font-size: 1.1rem;
+}
+
 .news-card {
-    background-color: #111827;
-    border: 1px solid #263244;
-    border-radius: 14px;
+    background: linear-gradient(145deg, #111827, #0a1220);
+    border: 1px solid #26364c;
+    border-radius: 15px;
     padding: 14px;
-    height: 145px;
+    min-height: 142px;
+    max-height: 142px;
     overflow: hidden;
 }
-.news-title {
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.35;
-}
+
 .news-meta {
-    color: #9ca3af;
-    font-size: 12px;
+    font-size: 0.74rem;
+    color: #94a3b8;
+    margin-bottom: 8px;
 }
-.compact-table {
-    font-size: 13px;
+
+.news-title {
+    font-size: 0.9rem;
+    line-height: 1.35;
+    font-weight: 700;
+}
+
+.news-title a {
+    color: #e5e7eb !important;
+    text-decoration: none;
+}
+
+.news-title a:hover {
+    color: #38bdf8 !important;
+    text-decoration: underline;
+}
+
+.news-link {
+    font-size: 0.8rem;
+    color: #38bdf8;
+    margin-top: 9px;
+}
+
+.badge-green {
+    color: #22c55e;
+    font-weight: 800;
+}
+
+.badge-red {
+    color: #ef4444;
+    font-weight: 800;
+}
+
+.badge-yellow {
+    color: #f59e0b;
+    font-weight: 800;
+}
+
+hr {
+    border-color: #1e293b;
+}
+
+div[data-testid="stDataFrame"] {
+    border: 1px solid #26364c;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.stSelectbox > div > div,
+.stTextInput > div > div > input {
+    background-color: #0f172a !important;
+    border: 1px solid #26364c !important;
+    color: #f8fafc !important;
+}
+
+button {
+    border-radius: 10px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# 사이드바
+# Sidebar
 # =========================
 st.sidebar.title("⚙️ 설정")
 
-auto_refresh = st.sidebar.checkbox("자동 갱신", value=False)
+auto_refresh = st.sidebar.toggle("자동 갱신", value=False)
 refresh_seconds = st.sidebar.selectbox("갱신 주기", [30, 60, 120, 300], index=1)
 
 if auto_refresh:
     st_autorefresh(interval=refresh_seconds * 1000, key="auto_refresh")
 
-if st.sidebar.button("🔄 수동 새로고침"):
+if st.sidebar.button("🔄 수동 새로고침", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.markdown("---")
+st.sidebar.divider()
 
 custom_symbol = st.sidebar.text_input(
     "🔎 티커 검색",
     placeholder="예: NVDA, QQQ, SOXL, PLTR, ^VIX"
 ).upper().strip()
 
-st.sidebar.markdown("---")
+st.sidebar.divider()
 
 chart_period = st.sidebar.selectbox(
     "차트 기간",
@@ -85,16 +206,15 @@ chart_period = st.sidebar.selectbox(
 chart_interval = st.sidebar.selectbox(
     "차트 간격",
     ["1m", "5m", "15m", "30m", "1h", "1d"],
-    index=0
+    index=1
 )
 
-st.sidebar.markdown("---")
-st.sidebar.caption("무료 데이터 기반")
-st.sidebar.caption("yfinance + Yahoo Finance RSS")
-st.sidebar.caption("실시간 데이터는 지연될 수 있습니다.")
+st.sidebar.divider()
+st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
+st.sidebar.caption(f"마지막 갱신\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # =========================
-# 기본 티커
+# Tickers
 # =========================
 default_tickers = {
     "S&P500 ETF": "SPY",
@@ -107,9 +227,9 @@ default_tickers = {
     "금": "GC=F",
     "유가 WTI": "CL=F",
     "반도체 ETF": "SMH",
+    "Nvidia": "NVDA",
     "Apple": "AAPL",
     "Microsoft": "MSFT",
-    "Nvidia": "NVDA",
     "Amazon": "AMZN",
     "Meta": "META",
     "Tesla": "TSLA",
@@ -120,12 +240,11 @@ default_tickers = {
 }
 
 tickers = default_tickers.copy()
-
 if custom_symbol:
     tickers[f"검색 종목: {custom_symbol}"] = custom_symbol
 
 # =========================
-# 데이터 함수
+# Data functions
 # =========================
 @st.cache_data(ttl=60)
 def get_price_data(ticker_dict):
@@ -157,6 +276,7 @@ def get_price_data(ticker_dict):
                     "변동률(%)": None,
                     "거래량": None
                 })
+
         except Exception:
             rows.append({
                 "이름": name,
@@ -193,14 +313,12 @@ def get_market_news():
         lower_title = title.lower()
 
         sentiment = "🟡 중립"
-
         if any(word in lower_title for word in bullish_keywords):
             sentiment = "🟢 긍정"
         if any(word in lower_title for word in bearish_keywords):
             sentiment = "🔴 부정"
 
         category = "일반"
-
         if any(word in lower_title for word in fed_keywords):
             category = "금리/연준"
         elif any(word in lower_title for word in ai_keywords):
@@ -220,32 +338,29 @@ def get_market_news():
 
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
-
     if row.empty:
         return None, None
-
     return row["현재가"].values[0], row["변동률(%)"].values[0]
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
         st.metric(label, "N/A")
+    elif delta is None or pd.isna(delta):
+        st.metric(label, value)
     else:
-        if delta is None or pd.isna(delta):
-            st.metric(label, value)
-        else:
-            st.metric(label, value, f"{delta}%")
+        st.metric(label, value, f"{delta}%")
 
 def color_change(value):
     if pd.isna(value):
         return ""
     if value > 0:
-        return "color: #00c853"
-    elif value < 0:
-        return "color: #ff5252"
+        return "color: #22c55e; font-weight: 700"
+    if value < 0:
+        return "color: #ef4444; font-weight: 700"
     return ""
 
 # =========================
-# 데이터 로드
+# Load Data
 # =========================
 df = get_price_data(tickers)
 
@@ -258,7 +373,7 @@ dxy_price, dxy_change = get_metric(df, "DX-Y.NYB")
 smh_price, smh_change = get_metric(df, "SMH")
 
 # =========================
-# 시장 상태 판단
+# Market Status
 # =========================
 risk_score = 0
 
@@ -281,58 +396,66 @@ if smh_change is not None:
     risk_score += 1 if smh_change > 1 else -1 if smh_change < -1 else 0
 
 if risk_score >= 3:
-    market_status = "🟢 Risk On"
+    market_status = "Risk On"
+    market_emoji = "🟢"
     market_comment = "성장주와 위험자산에 우호적인 환경입니다."
 elif risk_score <= -2:
-    market_status = "🔴 Risk Off"
+    market_status = "Risk Off"
+    market_emoji = "🔴"
     market_comment = "변동성, 금리, 달러 강세 등을 경계해야 합니다."
 else:
-    market_status = "🟡 중립"
+    market_status = "중립"
+    market_emoji = "🟡"
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
 
 # =========================
-# 헤더
+# Header
 # =========================
-header_left, header_right = st.columns([3, 1])
+header_left, header_right = st.columns([3.2, 1])
 
 with header_left:
     st.title("📈 미국 주식 시장 인텔리전스 대시보드")
-    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 뉴스 기반 시장 판단 시스템")
+    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 뉴스 기반 실시간 시장 판단 시스템")
 
 with header_right:
-    st.metric("시장 상태", market_status)
-    st.caption(market_comment)
+    st.markdown(
+        f"""
+        <div style="text-align:right; padding-top:10px;">
+            <div style="font-size:0.85rem; color:#94a3b8;">시장 상태</div>
+            <div class="status-pill">{market_emoji} {market_status}</div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-top:10px;">{market_comment}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # =========================
-# 핵심 카드
+# Key Metrics
 # =========================
-c1, c2, c3, c4, c5, c6 = st.columns(6)
+k1, k2, k3, k4, k5, k6 = st.columns(6)
 
-with c1:
-    safe_metric("QQQ", qqq_price, qqq_change)
-with c2:
-    safe_metric("NVDA", nvda_price, nvda_change)
-with c3:
-    safe_metric("VIX", vix_price, vix_change)
-with c4:
-    safe_metric("10년물 금리", tnx_price, tnx_change)
-with c5:
-    safe_metric("DXY", dxy_price, dxy_change)
-with c6:
-    safe_metric("SMH", smh_price, smh_change)
+with k1:
+    safe_metric("💎 QQQ", qqq_price, qqq_change)
+with k2:
+    safe_metric("🟩 NVDA", nvda_price, nvda_change)
+with k3:
+    safe_metric("🛡️ VIX", vix_price, vix_change)
+with k4:
+    safe_metric("🏛️ 10년물 금리", tnx_price, tnx_change)
+with k5:
+    safe_metric("💵 DXY", dxy_price, dxy_change)
+with k6:
+    safe_metric("🔲 SMH", smh_price, smh_change)
 
-st.markdown("---")
+st.markdown("")
 
 # =========================
-# 메인 영역
+# Main Layout
 # =========================
-main_left, main_mid, main_right = st.columns([2.2, 0.9, 0.95])
+left, middle, right = st.columns([2.15, 0.9, 0.95])
 
-with main_left:
-    chart_header_left, chart_header_right = st.columns([1, 1])
-
-    with chart_header_left:
-        st.subheader("📊 실시간형 차트")
+with left:
+    st.markdown('<div class="panel-title">📊 실시간 차트</div>', unsafe_allow_html=True)
 
     selected_name = st.selectbox(
         "차트 종목",
@@ -361,39 +484,45 @@ with main_left:
         fig.update_layout(
             title=f"{selected_name} ({selected_symbol})",
             template="plotly_dark",
-            height=520,
+            height=500,
             xaxis_rangeslider_visible=False,
-            margin=dict(l=15, r=15, t=45, b=20)
+            margin=dict(l=12, r=12, t=42, b=12),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(8,13,22,0.95)",
+            font=dict(color="#e5e7eb")
         )
 
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("차트 데이터를 불러오지 못했습니다.")
 
-with main_mid:
-    st.subheader("🧭 시장 판단")
+with middle:
+    st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
 
-    st.metric("종합 판단", market_status)
-    st.metric(
-        "변동성 위험",
-        "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음",
-        f"VIX {vix_price}"
-    )
-    st.metric(
-        "금리 부담",
-        "높음" if tnx_change and tnx_change > 1 else "보통",
-        f"10Y {tnx_price}"
-    )
-    st.metric(
-        "반도체 모멘텀",
-        "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통",
-        f"SMH {smh_change}%"
-    )
+    vol_status = "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음"
+    rate_status = "높음" if tnx_change and tnx_change > 1 else "보통"
+    semi_status = "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통"
 
-    st.info(market_comment)
+    st.markdown(f"""
+    <div class="panel">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding-bottom:12px;">
+            <span>종합 판단</span><span class="badge-green">{market_emoji} {market_status}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding:13px 0;">
+            <span>변동성 위험</span><span class="badge-yellow">{vol_status} (VIX {vix_price})</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding:13px 0;">
+            <span>금리 부담</span><span class="badge-yellow">{rate_status} (10Y {tnx_price})</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding-top:13px;">
+            <span>반도체 모멘텀</span><span class="badge-green">{semi_status} (SMH {smh_change}%)</span>
+        </div>
+        <div style="margin-top:20px; color:#93c5fd; font-size:0.88rem;">{market_comment}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-with main_right:
-    st.subheader("🚨 급등락 감지")
+with right:
+    st.markdown('<div class="panel-title">🚨 급등락 감지</div>', unsafe_allow_html=True)
 
     alert_df = df[
         (df["변동률(%)"].notna()) &
@@ -401,25 +530,30 @@ with main_right:
     ][["이름", "티커", "변동률(%)"]]
 
     if not alert_df.empty:
-        st.dataframe(alert_df, use_container_width=True, hide_index=True, height=300)
+        st.dataframe(
+            alert_df.style.map(color_change, subset=["변동률(%)"]),
+            use_container_width=True,
+            hide_index=True,
+            height=255
+        )
     else:
         st.success("±3% 이상 급등락 없음")
 
-    st.subheader("📝 요약")
-    st.markdown(
-        f"""
-        - QQQ: **{qqq_change}%**
-        - NVDA: **{nvda_change}%**
-        - VIX: **{vix_price}**
-        - 10Y: **{tnx_price}**
-        - DXY: **{dxy_price}**
-        """
-    )
+    st.markdown('<div class="panel-title">📝 요약</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="panel">
+        <div>QQQ: <b>{qqq_change}%</b></div>
+        <div>NVDA: <b>{nvda_change}%</b></div>
+        <div>VIX: <b>{vix_price}</b></div>
+        <div>10Y: <b>{tnx_price}</b></div>
+        <div>DXY: <b>{dxy_price}</b></div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # =========================
-# 뉴스 compact
+# News
 # =========================
-st.subheader("📰 주요 시장 뉴스")
+st.markdown('<div class="panel-title">📰 주요 시장 뉴스</div>', unsafe_allow_html=True)
 
 news_df = get_market_news()
 
@@ -435,7 +569,7 @@ if not news_df.empty:
                     <div class="news-title">
                         <a href="{row['링크']}" target="_blank">{row['뉴스 제목']}</a>
                     </div>
-                    <br>
+                    <div class="news-link">더 보기 →</div>
                     <div class="news-meta">{row['시간']}</div>
                 </div>
                 """,
@@ -445,9 +579,9 @@ else:
     st.warning("뉴스 데이터를 불러오지 못했습니다.")
 
 # =========================
-# 전체 시장 데이터 compact
+# Market Table
 # =========================
-st.subheader("📊 전체 시장 데이터")
+st.markdown('<div class="panel-title">📊 전체 시장 데이터</div>', unsafe_allow_html=True)
 
 table_left, table_right = st.columns(2)
 
@@ -460,7 +594,7 @@ with table_left:
         market_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
         hide_index=True,
-        height=310
+        height=300
     )
 
 with table_right:
@@ -469,7 +603,8 @@ with table_right:
         stock_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
         hide_index=True,
-        height=310
+        height=300
     )
 
 st.caption(f"마지막 갱신 시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다.")
