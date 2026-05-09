@@ -9,7 +9,7 @@ import requests
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
-    page_title="미국 주식 시장 인텔리전스 대시보드",
+    page_title="나스닥 시황 모니터링 대시보드",
     page_icon="📈",
     layout="wide"
 )
@@ -191,6 +191,105 @@ button {
 def get_kst_now():
     return datetime.now(ZoneInfo("Asia/Seoul"))
 
+# =========================
+# 한글 별칭 사전
+# =========================
+korean_alias = {
+    "엔비디아": "NVDA",
+    "nvidia": "NVDA",
+    "엔비": "NVDA",
+    "애플": "AAPL",
+    "apple": "AAPL",
+    "마이크로소프트": "MSFT",
+    "마소": "MSFT",
+    "ms": "MSFT",
+    "아마존": "AMZN",
+    "amazon": "AMZN",
+    "메타": "META",
+    "페이스북": "META",
+    "테슬라": "TSLA",
+    "tesla": "TSLA",
+    "구글": "GOOGL",
+    "알파벳": "GOOGL",
+    "google": "GOOGL",
+    "amd": "AMD",
+    "에이엠디": "AMD",
+    "브로드컴": "AVGO",
+    "broadcom": "AVGO",
+    "넷플릭스": "NFLX",
+    "netflix": "NFLX",
+    "팔란티어": "PLTR",
+    "palantir": "PLTR",
+    "솔리드파워": "SLDP",
+    "solid power": "SLDP",
+    "sldp": "SLDP",
+    "tsmc": "TSM",
+    "대만반도체": "TSM",
+    "대만 반도체": "TSM",
+    "암홀딩스": "ARM",
+    "arm": "ARM",
+    "소파이": "SOFI",
+    "sofi": "SOFI",
+    "루시드": "LCID",
+    "lucid": "LCID",
+    "리비안": "RIVN",
+    "rivian": "RIVN",
+    "코인베이스": "COIN",
+    "coinbase": "COIN",
+    "마이크론": "MU",
+    "micron": "MU",
+    "인텔": "INTC",
+    "intel": "INTC",
+    "퀄컴": "QCOM",
+    "qualcomm": "QCOM",
+    "어도비": "ADBE",
+    "adobe": "ADBE",
+    "세일즈포스": "CRM",
+    "salesforce": "CRM",
+    "오라클": "ORCL",
+    "oracle": "ORCL",
+    "스노우플레이크": "SNOW",
+    "snowflake": "SNOW",
+    "슈퍼마이크로": "SMCI",
+    "슈마컴": "SMCI",
+    "supermicro": "SMCI",
+    "델": "DELL",
+    "dell": "DELL",
+    "아이온큐": "IONQ",
+    "ionq": "IONQ",
+    "로빈후드": "HOOD",
+    "hood": "HOOD",
+    "로블록스": "RBLX",
+    "roblox": "RBLX",
+    "우버": "UBER",
+    "uber": "UBER",
+    "스포티파이": "SPOT",
+    "spotify": "SPOT",
+    "쇼피파이": "SHOP",
+    "shopify": "SHOP",
+    "도큐사인": "DOCU",
+    "docusign": "DOCU",
+    "크라우드스트라이크": "CRWD",
+    "crowdstrike": "CRWD",
+    "팔로알토": "PANW",
+    "palo alto": "PANW",
+    "나스닥": "QQQ",
+    "qqq": "QQQ",
+    "티큐": "TQQQ",
+    "티큐큐큐": "TQQQ",
+    "tqqq": "TQQQ",
+    "속슬": "SOXL",
+    "soxl": "SOXL",
+    "spy": "SPY",
+    "s&p500": "SPY",
+    "비트코인": "BTC-USD",
+    "bitcoin": "BTC-USD",
+    "btc": "BTC-USD",
+}
+
+def normalize_search_query(query):
+    key = query.strip().lower()
+    return korean_alias.get(key, query.strip())
 
 # =========================
 # Sidebar
@@ -240,7 +339,6 @@ st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
 st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 
-
 # =========================
 # 자산 목록
 # =========================
@@ -285,7 +383,6 @@ tickers.update(watchlist_assets)
 if custom_symbol:
     tickers[f"검색 추가: {custom_symbol}"] = custom_symbol
 
-
 # =========================
 # 데이터 함수
 # =========================
@@ -305,10 +402,7 @@ def get_price_data(ticker_dict):
                 volume = hist["Volume"].iloc[-1]
 
                 avg_volume = hist["Volume"].iloc[-21:-1].mean()
-                if pd.isna(avg_volume) or avg_volume == 0:
-                    volume_ratio = None
-                else:
-                    volume_ratio = volume / avg_volume
+                volume_ratio = None if pd.isna(avg_volume) or avg_volume == 0 else volume / avg_volume
 
                 rows.append({
                     "이름": name,
@@ -345,12 +439,10 @@ def get_price_data(ticker_dict):
 
     return df_result
 
-
 @st.cache_data(ttl=60)
 def get_chart_data(symbol, period, interval):
     stock = yf.Ticker(symbol)
     return stock.history(period=period, interval=interval)
-
 
 @st.cache_data(ttl=300)
 def get_market_news():
@@ -381,6 +473,7 @@ def get_market_news():
 
             if title in seen_titles:
                 continue
+
             seen_titles.add(title)
 
             sentiment = "🟡 중립"
@@ -409,15 +502,16 @@ def get_market_news():
 
     return pd.DataFrame(news_list[:16])
 
-
 @st.cache_data(ttl=300)
 def search_yahoo_symbols(query):
     if not query:
         return []
 
+    normalized_query = normalize_search_query(query)
+
     url = "https://query1.finance.yahoo.com/v1/finance/search"
     params = {
-        "q": query,
+        "q": normalized_query,
         "quotesCount": 10,
         "newsCount": 0,
         "lang": "en-US",
@@ -447,11 +541,18 @@ def search_yahoo_symbols(query):
                     "type": quote_type
                 })
 
+        if not results and normalized_query.upper():
+            results.append({
+                "symbol": normalized_query.upper(),
+                "name": normalized_query.upper(),
+                "exchange": "직접 입력",
+                "type": "UNKNOWN"
+            })
+
         return results
 
     except Exception:
         return []
-
 
 @st.cache_data(ttl=120)
 def get_searched_stock_data(symbol):
@@ -474,10 +575,7 @@ def get_searched_stock_data(symbol):
             volume_ratio = volume / avg_volume
 
         market_cap = info.get("marketCap")
-        if market_cap:
-            market_cap_text = f"{market_cap / 1_000_000_000:.2f}B"
-        else:
-            market_cap_text = "정보 없음"
+        market_cap_text = f"{market_cap / 1_000_000_000:.2f}B" if market_cap else "정보 없음"
 
         return {
             "symbol": symbol,
@@ -495,7 +593,6 @@ def get_searched_stock_data(symbol):
 
     except Exception:
         return None
-
 
 @st.cache_data(ttl=300)
 def get_stock_specific_news(symbol):
@@ -517,13 +614,11 @@ def get_stock_specific_news(symbol):
     except Exception:
         return []
 
-
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
     if row.empty:
         return None, None
     return row["현재가"].values[0], row["변동률(%)"].values[0]
-
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -533,7 +628,6 @@ def safe_metric(label, value, delta=None):
     else:
         st.metric(label, value, f"{delta}%")
 
-
 def color_change(value):
     if pd.isna(value):
         return ""
@@ -542,7 +636,6 @@ def color_change(value):
     if value < 0:
         return "color: #ef4444; font-weight: 700"
     return ""
-
 
 def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_change, dxy_change, smh_change):
     score = 0
@@ -638,7 +731,6 @@ def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_ch
 
     return final_signal, comment, reasons, score
 
-
 def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     candidate_df = dataframe[dataframe["티커"].isin(watchlist_assets.values())].copy()
 
@@ -719,7 +811,6 @@ def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     result = pd.DataFrame(scores)
     return result.sort_values("점수", ascending=False)
 
-
 # =========================
 # 데이터 로드
 # =========================
@@ -735,11 +826,8 @@ tnx_price, tnx_change = get_metric(df, "^TNX")
 dxy_price, dxy_change = get_metric(df, "DX-Y.NYB")
 smh_price, smh_change = get_metric(df, "SMH")
 btc_price, btc_change = get_metric(df, "BTC-USD")
-oil_price, oil_change = get_metric(df, "CL=F")
-gold_price, gold_change = get_metric(df, "GC=F")
 
 candidate_df = score_candidates(df, news_df, vix_price, tnx_change, smh_change)
-
 
 # =========================
 # 시장 상태 판단
@@ -776,7 +864,6 @@ else:
     market_status = "중립"
     market_emoji = "🟡"
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
-
 
 # =========================
 # 오늘의 시장 평가 텍스트
@@ -821,10 +908,8 @@ def build_market_briefing():
 이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
 """
 
-
 if "show_market_briefing" not in st.session_state:
     st.session_state.show_market_briefing = False
-
 
 # =========================
 # Header
@@ -832,8 +917,8 @@ if "show_market_briefing" not in st.session_state:
 header_left, header_right = st.columns([3.2, 1])
 
 with header_left:
-    st.title("📈 미국 주식 시장 인텔리전스 대시보드")
-    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 실시간 시장 판단 시스템")
+    st.title("📈 나스닥 시황 모니터링 대시보드")
+    st.caption("나스닥100 · 성장주 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 시장 판단 시스템")
 
 with header_right:
     st.markdown(
@@ -862,7 +947,6 @@ else:
     if st.session_state.show_market_briefing:
         with st.expander("오늘의 실시간 시장현황", expanded=True):
             st.markdown(build_market_briefing())
-
 
 # =========================
 # Key Metrics
@@ -893,7 +977,6 @@ for row_start in range(0, len(top_metric_list), 5):
             safe_metric(label, price, change)
 
 st.markdown("")
-
 
 # =========================
 # Main Layout
@@ -949,12 +1032,13 @@ with left:
 
     stock_search_query = st.text_input(
         "종목명 또는 티커 검색",
-        placeholder="예: SLDP, Solid Power, NVDA, Tesla, SOXL",
+        placeholder="예: 엔비디아, 솔리드파워, SLDP, NVDA, 테슬라, SOXL",
         key="stock_search_box"
     )
 
     if stock_search_query:
-        search_results = search_yahoo_symbols(stock_search_query)
+        normalized_query = normalize_search_query(stock_search_query)
+        search_results = search_yahoo_symbols(normalized_query)
 
         if search_results:
             option_labels = [
@@ -1002,29 +1086,49 @@ with left:
                 with s4:
                     st.metric("판단", signal)
 
-                st.markdown(
-                    f"""
-                    <div class="panel">
-                        <div class="comment-title">{stock_data['name']} ({selected_symbol_for_analysis})</div>
-                        <div class="comment-desc">
-                            시가총액: {stock_data['market_cap']}<br>
-                            섹터: {stock_data['sector']}<br>
-                            산업: {stock_data['industry']}<br>
-                            애널리스트 평가: {stock_data['recommendation']}<br>
-                            평균 목표가: {stock_data['target_price']}
-                        </div>
-                        <br>
-                        <div class="comment-title">📌 종합 해석</div>
-                        <div class="comment-desc">{comment}</div>
-                        <div class="comment-signal">점수: {score} / 신호: {signal}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                analysis_left, analysis_right = st.columns([1.4, 1])
 
-                st.markdown("**분석 근거**")
-                for reason in reasons:
-                    st.markdown(f"- {reason}")
+                with analysis_left:
+                    st.markdown(
+                        f"""
+                        <div class="panel">
+                            <div class="comment-title">{stock_data['name']} ({selected_symbol_for_analysis})</div>
+                            <div class="comment-desc">
+                                시가총액: {stock_data['market_cap']}<br>
+                                섹터: {stock_data['sector']}<br>
+                                산업: {stock_data['industry']}<br>
+                                애널리스트 평가: {stock_data['recommendation']}<br>
+                                평균 목표가: {stock_data['target_price']}
+                            </div>
+                            <br>
+                            <div class="comment-title">📌 종합 해석</div>
+                            <div class="comment-desc">{comment}</div>
+                            <div class="comment-signal">점수: {score} / 신호: {signal}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                with analysis_right:
+                    reason_html = ""
+                    for reason in reasons:
+                        reason_html += f"""
+                        <div style="border-bottom:1px solid #26364c; padding:8px 0;">
+                            • {reason}
+                        </div>
+                        """
+
+                    st.markdown(
+                        f"""
+                        <div class="panel">
+                            <div class="comment-title">📍 분석 근거</div>
+                            <div class="comment-desc">
+                                {reason_html}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
                 st.markdown("**최신 관련 뉴스**")
 
@@ -1053,7 +1157,7 @@ with left:
                 st.warning("해당 종목 데이터를 불러오지 못했습니다. 티커를 다시 확인하세요.")
 
         else:
-            st.warning("검색 결과가 없습니다. 한글명보다는 영문명 또는 티커를 입력해 주세요.")
+            st.warning("검색 결과가 없습니다. 한글명은 등록된 별칭만 지원하며, 영문명 또는 티커 입력이 가장 정확합니다.")
 
 with middle:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
@@ -1122,7 +1226,6 @@ with right:
         )
     else:
         st.info("관심 후보 데이터 없음")
-
 
 # =========================
 # 실시간 시장 코멘트
@@ -1201,7 +1304,6 @@ for idx, (title, desc, signal) in enumerate(comments):
             unsafe_allow_html=True
         )
 
-
 # =========================
 # News
 # =========================
@@ -1243,7 +1345,6 @@ if not news_df.empty:
 else:
     st.warning("뉴스 데이터를 불러오지 못했습니다.")
 
-
 # =========================
 # Market Table
 # =========================
@@ -1274,3 +1375,4 @@ with table_right:
 
 st.caption(f"마지막 갱신 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다. 표시되는 관심 후보와 종목 분석은 매수·매도 추천이 아니라 시장 관찰용 신호입니다.")
+st.caption("© JJS. 제작자 동의 없이 무단 배포, 복제, 수정, 재공유 및 불펌을 금지합니다.")
