@@ -27,7 +27,7 @@ st.markdown("""
     padding-top: 1.1rem;
     padding-left: 1.6rem;
     padding-right: 1.6rem;
-    max-width: 98vw !important;
+    max-width: 98.5vw !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -38,33 +38,33 @@ section[data-testid="stSidebar"] {
 [data-testid="stMetric"] {
     background: linear-gradient(145deg, #111827, #0b1322);
     border: 1px solid #253449;
-    padding: 16px 18px;
+    padding: 15px 17px;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-    min-height: 118px;
+    min-height: 112px;
 }
 
 [data-testid="stMetricLabel"] {
     color: #cbd5e1;
-    font-size: 0.82rem;
+    font-size: 0.80rem;
 }
 
 [data-testid="stMetricValue"] {
-    font-size: 1.7rem;
+    font-size: 1.58rem;
     font-weight: 750;
 }
 
 [data-testid="stMetricDelta"] {
-    font-size: 0.82rem;
+    font-size: 0.80rem;
 }
 
 .panel {
     background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(9,15,27,0.96));
     border: 1px solid #26364c;
     border-radius: 18px;
-    padding: 18px;
+    padding: 16px;
     box-shadow: 0 10px 26px rgba(0,0,0,0.25);
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 }
 
 .panel-title {
@@ -83,7 +83,7 @@ section[data-testid="stSidebar"] {
     border: 1px solid rgba(34,197,94,0.35);
     color: #86efac;
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
 }
 
 .news-card {
@@ -109,7 +109,7 @@ section[data-testid="stSidebar"] {
 }
 
 .news-title {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     line-height: 1.35;
     font-weight: 700;
 }
@@ -145,27 +145,22 @@ section[data-testid="stSidebar"] {
     font-weight: 800;
 }
 
-.comment-row {
-    border-bottom: 1px solid #26364c;
-    padding: 9px 0;
-}
-
 .comment-title {
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
 }
 
 .comment-desc {
     font-size: 0.82rem;
     color: #cbd5e1;
-    line-height: 1.35;
-    margin-top: 3px;
+    line-height: 1.4;
+    margin-top: 5px;
 }
 
 .comment-signal {
-    font-size: 0.77rem;
+    font-size: 0.78rem;
     color: #38bdf8;
-    margin-top: 3px;
+    margin-top: 5px;
 }
 
 div[data-testid="stDataFrame"] {
@@ -175,7 +170,8 @@ div[data-testid="stDataFrame"] {
 }
 
 .stSelectbox > div > div,
-.stTextInput > div > div > input {
+.stTextInput > div > div > input,
+.stTextArea textarea {
     background-color: #0f172a !important;
     border: 1px solid #26364c !important;
     color: #f8fafc !important;
@@ -230,13 +226,21 @@ chart_interval = st.sidebar.selectbox(
 )
 
 st.sidebar.divider()
+
+economic_memo = st.sidebar.text_area(
+    "📅 경제 이벤트 메모",
+    value="CPI 발표 확인\nPPI 발표 확인\nFOMC 일정 확인\nPCE 물가 확인\n고용보고서 확인\n연준 인사 발언 확인",
+    height=130
+)
+
+st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
 st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 
 # =========================
-# Tickers
+# 자산 목록
 # =========================
-default_tickers = {
+market_assets = {
     "NASDAQ100 ETF": "QQQ",
     "나스닥 현물": "^IXIC",
     "S&P500 현물": "^GSPC",
@@ -250,6 +254,9 @@ default_tickers = {
     "비트코인": "BTC-USD",
     "반도체 ETF": "SMH",
     "반도체 지수": "^SOX",
+}
+
+watchlist_assets = {
     "Nvidia": "NVDA",
     "Apple": "AAPL",
     "Microsoft": "MSFT",
@@ -260,14 +267,22 @@ default_tickers = {
     "AMD": "AMD",
     "Broadcom": "AVGO",
     "Netflix": "NFLX",
+    "Palantir": "PLTR",
+    "TSMC": "TSM",
+    "ARM": "ARM",
+    "SOXL": "SOXL",
+    "TQQQ": "TQQQ",
 }
 
-tickers = default_tickers.copy()
+tickers = {}
+tickers.update(market_assets)
+tickers.update(watchlist_assets)
+
 if custom_symbol:
     tickers[f"검색 종목: {custom_symbol}"] = custom_symbol
 
 # =========================
-# Data functions
+# 데이터 함수
 # =========================
 @st.cache_data(ttl=60)
 def get_price_data(ticker_dict):
@@ -276,7 +291,7 @@ def get_price_data(ticker_dict):
     for name, symbol in ticker_dict.items():
         try:
             stock = yf.Ticker(symbol)
-            hist = stock.history(period="2d")
+            hist = stock.history(period="1mo")
 
             if len(hist) >= 2:
                 prev_close = hist["Close"].iloc[-2]
@@ -284,12 +299,19 @@ def get_price_data(ticker_dict):
                 change_pct = ((current_price - prev_close) / prev_close) * 100
                 volume = hist["Volume"].iloc[-1]
 
+                avg_volume = hist["Volume"].iloc[-21:-1].mean()
+                if pd.isna(avg_volume) or avg_volume == 0:
+                    volume_ratio = None
+                else:
+                    volume_ratio = volume / avg_volume
+
                 rows.append({
                     "이름": name,
                     "티커": symbol,
                     "현재가": round(current_price, 2),
                     "변동률(%)": round(change_pct, 2),
-                    "거래량": int(volume)
+                    "거래량": int(volume) if not pd.isna(volume) else 0,
+                    "평균거래량대비": round(volume_ratio, 2) if volume_ratio is not None else None
                 })
             else:
                 rows.append({
@@ -297,7 +319,8 @@ def get_price_data(ticker_dict):
                     "티커": symbol,
                     "현재가": None,
                     "변동률(%)": None,
-                    "거래량": None
+                    "거래량": None,
+                    "평균거래량대비": None
                 })
 
         except Exception:
@@ -306,10 +329,16 @@ def get_price_data(ticker_dict):
                 "티커": symbol,
                 "현재가": None,
                 "변동률(%)": None,
-                "거래량": None
+                "거래량": None,
+                "평균거래량대비": None
             })
 
-    return pd.DataFrame(rows)
+    df_result = pd.DataFrame(rows)
+
+    for col in ["현재가", "변동률(%)", "거래량", "평균거래량대비"]:
+        df_result[col] = pd.to_numeric(df_result[col], errors="coerce")
+
+    return df_result
 
 @st.cache_data(ttl=60)
 def get_chart_data(symbol, period, interval):
@@ -318,52 +347,72 @@ def get_chart_data(symbol, period, interval):
 
 @st.cache_data(ttl=300)
 def get_market_news():
-    rss_url = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
-    feed = feedparser.parse(rss_url)
+    rss_urls = [
+        "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US",
+        "https://feeds.finance.yahoo.com/rss/2.0/headline?s=QQQ,NVDA,AMD,AVGO,TSLA,META,MSFT&region=US&lang=en-US",
+        "https://feeds.finance.yahoo.com/rss/2.0/headline?s=BTC-USD,GC=F,CL=F&region=US&lang=en-US",
+    ]
 
-    bullish_keywords = ["surge", "gain", "rise", "beat", "record", "growth", "bull", "rally", "strong", "optimism"]
-    bearish_keywords = ["fall", "drop", "fear", "cut", "war", "inflation", "selloff", "recession", "decline", "weak", "risk"]
-    fed_keywords = ["fed", "powell", "rate", "fomc", "yield"]
-    ai_keywords = ["ai", "nvidia", "semiconductor", "chip", "amd", "broadcom"]
-    macro_keywords = ["inflation", "cpi", "ppi", "jobs", "unemployment", "gdp"]
+    bullish_keywords = ["surge", "gain", "rise", "beat", "record", "growth", "bull", "rally", "strong", "optimism", "outperform"]
+    bearish_keywords = ["fall", "drop", "fear", "cut", "war", "inflation", "selloff", "recession", "decline", "weak", "risk", "miss"]
+    fed_keywords = ["fed", "powell", "rate", "fomc", "yield", "treasury"]
+    ai_keywords = ["ai", "nvidia", "semiconductor", "chip", "amd", "broadcom", "tsmc"]
+    macro_keywords = ["inflation", "cpi", "ppi", "jobs", "unemployment", "gdp", "oil", "gold", "dollar"]
+    geopolitical_keywords = ["war", "tariff", "china", "russia", "israel", "iran", "sanction", "export control"]
 
     news_list = []
+    seen_titles = set()
 
-    for entry in feed.entries[:8]:
-        title = entry.title
-        link = entry.link
-        published = entry.get("published", "")
-        lower_title = title.lower()
+    for rss_url in rss_urls:
+        feed = feedparser.parse(rss_url)
 
-        sentiment = "🟡 중립"
-        if any(word in lower_title for word in bullish_keywords):
-            sentiment = "🟢 긍정"
-        if any(word in lower_title for word in bearish_keywords):
-            sentiment = "🔴 부정"
+        for entry in feed.entries[:10]:
+            title = entry.title
+            link = entry.link
+            published = entry.get("published", "")
+            lower_title = title.lower()
 
-        category = "일반"
-        if any(word in lower_title for word in fed_keywords):
-            category = "금리/연준"
-        elif any(word in lower_title for word in ai_keywords):
-            category = "AI/반도체"
-        elif any(word in lower_title for word in macro_keywords):
-            category = "거시경제"
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
 
-        news_list.append({
-            "분위기": sentiment,
-            "분류": category,
-            "뉴스 제목": title,
-            "링크": link,
-            "시간": published
-        })
+            sentiment = "🟡 중립"
+            if any(word in lower_title for word in bullish_keywords):
+                sentiment = "🟢 긍정"
+            if any(word in lower_title for word in bearish_keywords):
+                sentiment = "🔴 부정"
 
-    return pd.DataFrame(news_list)
+            category = "일반"
+            if any(word in lower_title for word in fed_keywords):
+                category = "금리/연준"
+            elif any(word in lower_title for word in ai_keywords):
+                category = "AI/반도체"
+            elif any(word in lower_title for word in macro_keywords):
+                category = "거시경제"
+            elif any(word in lower_title for word in geopolitical_keywords):
+                category = "국제정세"
+
+            news_list.append({
+                "분위기": sentiment,
+                "분류": category,
+                "뉴스 제목": title,
+                "링크": link,
+                "시간": published
+            })
+
+    return pd.DataFrame(news_list[:16])
 
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
     if row.empty:
         return None, None
     return row["현재가"].values[0], row["변동률(%)"].values[0]
+
+def get_row_by_ticker(dataframe, ticker):
+    row = dataframe[dataframe["티커"] == ticker]
+    if row.empty:
+        return None
+    return row.iloc[0]
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -382,21 +431,108 @@ def color_change(value):
         return "color: #ef4444; font-weight: 700"
     return ""
 
+def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
+    candidate_df = dataframe[dataframe["티커"].isin(watchlist_assets.values())].copy()
+
+    if candidate_df.empty:
+        return pd.DataFrame()
+
+    scores = []
+
+    for _, row in candidate_df.iterrows():
+        score = 0
+        reasons = []
+
+        change = row["변동률(%)"]
+        volume_ratio = row["평균거래량대비"]
+        ticker = row["티커"]
+        name = row["이름"]
+
+        if pd.notna(change):
+            if change >= 3:
+                score += 3
+                reasons.append("강한 상승률")
+            elif change >= 1:
+                score += 2
+                reasons.append("상승 흐름")
+            elif change <= -3:
+                score -= 2
+                reasons.append("급락 주의")
+            elif change <= -1:
+                score -= 1
+                reasons.append("약세 흐름")
+
+        if pd.notna(volume_ratio):
+            if volume_ratio >= 2:
+                score += 3
+                reasons.append("거래량 급증")
+            elif volume_ratio >= 1.5:
+                score += 2
+                reasons.append("거래량 증가")
+
+        semi_tickers = ["NVDA", "AMD", "AVGO", "TSM", "ARM", "SOXL"]
+        if ticker in semi_tickers and smh_change is not None and smh_change > 1:
+            score += 1
+            reasons.append("반도체 섹터 우호")
+
+        if vix_price is not None and vix_price > 25:
+            score -= 1
+            reasons.append("VIX 위험 부담")
+
+        if tnx_change is not None and tnx_change > 1:
+            score -= 1
+            reasons.append("금리 상승 부담")
+
+        if not news_df.empty:
+            titles = " ".join(news_df["뉴스 제목"].astype(str).tolist()).lower()
+            if ticker.lower() in titles or name.lower() in titles:
+                score += 1
+                reasons.append("뉴스 언급")
+
+        if score >= 4:
+            signal = "🟢 관심 후보"
+        elif score >= 2:
+            signal = "🟡 관찰"
+        elif score <= -2:
+            signal = "🔴 리스크 경계"
+        else:
+            signal = "⚪ 관망"
+
+        scores.append({
+            "이름": name,
+            "티커": ticker,
+            "변동률(%)": change,
+            "거래량배율": volume_ratio,
+            "점수": score,
+            "신호": signal,
+            "근거": ", ".join(reasons) if reasons else "특이 신호 제한"
+        })
+
+    result = pd.DataFrame(scores)
+    return result.sort_values("점수", ascending=False)
+
 # =========================
-# Load Data
+# 데이터 로드
 # =========================
 df = get_price_data(tickers)
+news_df = get_market_news()
 
 qqq_price, qqq_change = get_metric(df, "QQQ")
 spy_price, spy_change = get_metric(df, "^GSPC")
+nasdaq_price, nasdaq_change = get_metric(df, "^IXIC")
 nvda_price, nvda_change = get_metric(df, "NVDA")
 vix_price, vix_change = get_metric(df, "^VIX")
 tnx_price, tnx_change = get_metric(df, "^TNX")
 dxy_price, dxy_change = get_metric(df, "DX-Y.NYB")
 smh_price, smh_change = get_metric(df, "SMH")
+btc_price, btc_change = get_metric(df, "BTC-USD")
+oil_price, oil_change = get_metric(df, "CL=F")
+gold_price, gold_change = get_metric(df, "GC=F")
+
+candidate_df = score_candidates(df, news_df, vix_price, tnx_change, smh_change)
 
 # =========================
-# Market Status
+# 시장 상태 판단
 # =========================
 risk_score = 0
 
@@ -432,6 +568,55 @@ else:
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
 
 # =========================
+# 오늘의 시장 평가 텍스트
+# =========================
+def build_market_briefing():
+    top_news = news_df.head(3)["뉴스 제목"].tolist() if not news_df.empty else []
+
+    top_candidate_text = "관심 후보 없음"
+    if not candidate_df.empty:
+        top = candidate_df.iloc[0]
+        top_candidate_text = f"{top['이름']}({top['티커']}) - {top['신호']} / 근거: {top['근거']}"
+
+    issue_lines = ""
+    for title in top_news:
+        issue_lines += f"- {title}\n"
+
+    return f"""
+### 오늘의 실시간 시장현황
+
+**종합 판단:** {market_emoji} {market_status}
+
+**핵심 지표**
+- QQQ: {qqq_change}%
+- 나스닥 현물: {nasdaq_change}%
+- S&P500: {spy_change}%
+- VIX: {vix_price}
+- 10년물 금리: {tnx_price}
+- DXY: {dxy_price}
+- 반도체 ETF(SMH): {smh_change}%
+- 비트코인: {btc_change}%
+
+**시장 해석**
+{market_comment}
+
+**금일 주요 뉴스**
+{issue_lines if issue_lines else "- 뉴스 데이터를 불러오지 못했습니다."}
+
+**현재 데이터 기반 관심 후보**
+{top_candidate_text}
+
+**주의**
+이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
+"""
+
+# =========================
+# 팝업 / 브리핑 버튼
+# =========================
+if "show_market_briefing" not in st.session_state:
+    st.session_state.show_market_briefing = False
+
+# =========================
 # Header
 # =========================
 header_left, header_right = st.columns([3.2, 1])
@@ -451,6 +636,22 @@ with header_right:
         """,
         unsafe_allow_html=True
     )
+
+if hasattr(st, "dialog"):
+    @st.dialog("오늘의 실시간 시장현황")
+    def market_dialog():
+        st.markdown(build_market_briefing())
+        st.caption(f"생성 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
+
+    if st.button("📌 오늘의 실시간 시장현황 보기", use_container_width=True):
+        market_dialog()
+else:
+    if st.button("📌 오늘의 실시간 시장현황 보기", use_container_width=True):
+        st.session_state.show_market_briefing = not st.session_state.show_market_briefing
+
+    if st.session_state.show_market_briefing:
+        with st.expander("오늘의 실시간 시장현황", expanded=True):
+            st.markdown(build_market_briefing())
 
 # =========================
 # Key Metrics
@@ -554,13 +755,26 @@ with middle:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown('<div class="panel-title">📅 경제 이벤트 체크</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="panel">
+            <div style="white-space:pre-line; font-size:0.86rem; color:#cbd5e1;">{economic_memo}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 with right:
-    st.markdown('<div class="panel-title">🚨 급등락 감지</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
 
     alert_df = df[
         (df["변동률(%)"].notna()) &
-        ((df["변동률(%)"] >= 3) | (df["변동률(%)"] <= -3))
-    ][["이름", "티커", "변동률(%)"]]
+        (
+            (df["변동률(%)"].abs() >= 3) |
+            (df["평균거래량대비"].fillna(0) >= 1.8)
+        )
+    ][["이름", "티커", "변동률(%)", "평균거래량대비"]]
 
     if not alert_df.empty:
         st.dataframe(
@@ -570,21 +784,22 @@ with right:
             height=255
         )
     else:
-        st.success("±3% 이상 급등락 없음")
+        st.success("급등락/거래량 이상 신호 없음")
 
-    st.markdown('<div class="panel-title">📝 요약</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="panel">
-        <div>QQQ: <b>{qqq_change}%</b></div>
-        <div>NVDA: <b>{nvda_change}%</b></div>
-        <div>VIX: <b>{vix_price}</b></div>
-        <div>10Y: <b>{tnx_price}</b></div>
-        <div>DXY: <b>{dxy_price}</b></div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">🎯 현재 관심 후보</div>', unsafe_allow_html=True)
+
+    if not candidate_df.empty:
+        st.dataframe(
+            candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]],
+            use_container_width=True,
+            hide_index=True,
+            height=260
+        )
+    else:
+        st.info("관심 후보 데이터 없음")
 
 # =========================
-# Real-time Comments
+# 실시간 시장 코멘트
 # =========================
 st.markdown('<div class="panel-title">🧠 실시간 시장 코멘트</div>', unsafe_allow_html=True)
 
@@ -630,16 +845,16 @@ if dxy_change is not None:
     else:
         comments.append(("🟡 달러 중립", "달러 움직임은 제한적입니다.", "관망"))
 
-strong_movers = df[
-    (df["변동률(%)"].notna()) &
-    (df["변동률(%)"].abs() >= 3)
-].sort_values("변동률(%)", ascending=False)
+volume_spike = df[
+    (df["평균거래량대비"].notna()) &
+    (df["평균거래량대비"] >= 1.8)
+].sort_values("평균거래량대비", ascending=False)
 
-if not strong_movers.empty:
-    top_mover = strong_movers.iloc[0]
+if not volume_spike.empty:
+    top_volume = volume_spike.iloc[0]
     comments.append((
-        "🚨 급등락 종목 감지",
-        f"{top_mover['이름']}({top_mover['티커']}) 변동률 {top_mover['변동률(%)']}% 감지.",
+        "📊 거래량 증가",
+        f"{top_volume['이름']}({top_volume['티커']}) 거래량이 평균 대비 {top_volume['평균거래량대비']}배 수준입니다.",
         "추적 필요"
     ))
 
@@ -678,7 +893,6 @@ with news_btn_col:
     ):
         st.session_state.show_all_news = not st.session_state.show_all_news
 
-news_df = get_market_news()
 news_count = 8 if st.session_state.show_all_news else 4
 
 if not news_df.empty:
@@ -709,8 +923,8 @@ st.markdown('<div class="panel-title">📊 전체 시장 데이터</div>', unsaf
 
 table_left, table_right = st.columns(2)
 
-market_df = df.iloc[:13].copy()
-stock_df = df.iloc[13:].copy()
+market_df = df[df["티커"].isin(market_assets.values())].copy()
+stock_df = df[df["티커"].isin(watchlist_assets.values())].copy()
 
 with table_left:
     st.caption("지수 / 거시 / 선물 / 원자재 / 섹터")
@@ -722,7 +936,7 @@ with table_left:
     )
 
 with table_right:
-    st.caption("주요 관심 종목")
+    st.caption("Watchlist / 주요 관심 종목")
     st.dataframe(
         stock_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
@@ -731,4 +945,4 @@ with table_right:
     )
 
 st.caption(f"마지막 갱신 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
-st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다.")
+st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다. 표시되는 관심 후보는 매수·매도 추천이 아니라 시장 관찰용 신호입니다.")
