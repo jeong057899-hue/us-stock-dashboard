@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import feedparser
 from streamlit_autorefresh import st_autorefresh
 
@@ -17,29 +18,16 @@ st.set_page_config(
 # =========================
 st.markdown("""
 <style>
-:root {
-    --bg: #080d16;
-    --panel: #0f1724;
-    --panel2: #111c2d;
-    --border: #233247;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --green: #22c55e;
-    --red: #ef4444;
-    --blue: #38bdf8;
-    --yellow: #f59e0b;
-}
-
 .stApp {
     background: radial-gradient(circle at top left, #102033 0%, #080d16 45%, #05070d 100%);
-    color: var(--text);
+    color: #f8fafc;
 }
 
 .block-container {
-    padding-top: 1.2rem;
-    padding-left: 1.7rem;
-    padding-right: 1.7rem;
-    max-width: 1500px;
+    padding-top: 1.1rem;
+    padding-left: 1.6rem;
+    padding-right: 1.6rem;
+    max-width: 98vw !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -52,21 +40,22 @@ section[data-testid="stSidebar"] {
     border: 1px solid #253449;
     padding: 16px 18px;
     border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.22);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    min-height: 118px;
 }
 
 [data-testid="stMetricLabel"] {
     color: #cbd5e1;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
 [data-testid="stMetricValue"] {
-    font-size: 1.85rem;
+    font-size: 1.7rem;
     font-weight: 750;
 }
 
 [data-testid="stMetricDelta"] {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
 .panel {
@@ -81,7 +70,7 @@ section[data-testid="stSidebar"] {
 .panel-title {
     font-size: 1.08rem;
     font-weight: 800;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     color: #f8fafc;
 }
 
@@ -102,9 +91,15 @@ section[data-testid="stSidebar"] {
     border: 1px solid #26364c;
     border-radius: 15px;
     padding: 14px;
-    min-height: 142px;
-    max-height: 142px;
+    min-height: 132px;
+    max-height: 132px;
     overflow: hidden;
+}
+
+.news-card:hover {
+    transform: translateY(-2px);
+    transition: 0.2s;
+    border-color: #38bdf8;
 }
 
 .news-meta {
@@ -132,7 +127,7 @@ section[data-testid="stSidebar"] {
 .news-link {
     font-size: 0.8rem;
     color: #38bdf8;
-    margin-top: 9px;
+    margin-top: 8px;
 }
 
 .badge-green {
@@ -148,10 +143,6 @@ section[data-testid="stSidebar"] {
 .badge-yellow {
     color: #f59e0b;
     font-weight: 800;
-}
-
-hr {
-    border-color: #1e293b;
 }
 
 div[data-testid="stDataFrame"] {
@@ -174,11 +165,17 @@ button {
 """, unsafe_allow_html=True)
 
 # =========================
+# 시간
+# =========================
+def get_kst_now():
+    return datetime.now(ZoneInfo("Asia/Seoul"))
+
+# =========================
 # Sidebar
 # =========================
 st.sidebar.title("⚙️ 설정")
 
-auto_refresh = st.sidebar.toggle("자동 갱신", value=False)
+auto_refresh = st.sidebar.checkbox("자동 갱신", value=False)
 refresh_seconds = st.sidebar.selectbox("갱신 주기", [30, 60, 120, 300], index=1)
 
 if auto_refresh:
@@ -192,7 +189,7 @@ st.sidebar.divider()
 
 custom_symbol = st.sidebar.text_input(
     "🔎 티커 검색",
-    placeholder="예: NVDA, QQQ, SOXL, PLTR, ^VIX"
+    placeholder="예: NVDA, QQQ, SOXL, PLTR, BTC-USD"
 ).upper().strip()
 
 st.sidebar.divider()
@@ -211,22 +208,25 @@ chart_interval = st.sidebar.selectbox(
 
 st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
-st.sidebar.caption(f"마지막 갱신\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 
 # =========================
 # Tickers
 # =========================
 default_tickers = {
-    "S&P500 ETF": "SPY",
     "NASDAQ100 ETF": "QQQ",
-    "DOW ETF": "DIA",
-    "Russell2000 ETF": "IWM",
+    "나스닥 현물": "^IXIC",
+    "S&P500 현물": "^GSPC",
+    "나스닥 선물": "NQ=F",
+    "S&P500 선물": "ES=F",
     "VIX": "^VIX",
     "미국 10년물 금리": "^TNX",
     "달러 인덱스": "DX-Y.NYB",
     "금": "GC=F",
     "유가 WTI": "CL=F",
+    "비트코인": "BTC-USD",
     "반도체 ETF": "SMH",
+    "반도체 지수": "^SOX",
     "Nvidia": "NVDA",
     "Apple": "AAPL",
     "Microsoft": "MSFT",
@@ -365,7 +365,7 @@ def color_change(value):
 df = get_price_data(tickers)
 
 qqq_price, qqq_change = get_metric(df, "QQQ")
-spy_price, spy_change = get_metric(df, "SPY")
+spy_price, spy_change = get_metric(df, "^GSPC")
 nvda_price, nvda_change = get_metric(df, "NVDA")
 vix_price, vix_change = get_metric(df, "^VIX")
 tnx_price, tnx_change = get_metric(df, "^TNX")
@@ -415,7 +415,7 @@ header_left, header_right = st.columns([3.2, 1])
 
 with header_left:
     st.title("📈 미국 주식 시장 인텔리전스 대시보드")
-    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 뉴스 기반 실시간 시장 판단 시스템")
+    st.caption("성장주 · 나스닥100 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 실시간 시장 판단 시스템")
 
 with header_right:
     st.markdown(
@@ -432,20 +432,30 @@ with header_right:
 # =========================
 # Key Metrics
 # =========================
-k1, k2, k3, k4, k5, k6 = st.columns(6)
+top_metric_list = [
+    ("💎 QQQ", "QQQ"),
+    ("📈 나스닥", "^IXIC"),
+    ("📊 S&P500", "^GSPC"),
+    ("🧭 나스닥 선물", "NQ=F"),
+    ("🧭 S&P 선물", "ES=F"),
+    ("🛡️ VIX", "^VIX"),
+    ("🏛️ 10년물 금리", "^TNX"),
+    ("💵 DXY", "DX-Y.NYB"),
+    ("🥇 금", "GC=F"),
+    ("🛢️ 유가 WTI", "CL=F"),
+    ("₿ 비트코인", "BTC-USD"),
+    ("🔲 SMH", "SMH"),
+    ("🧩 SOX", "^SOX"),
+    ("🟩 NVDA", "NVDA"),
+    ("🔴 AMD", "AMD"),
+]
 
-with k1:
-    safe_metric("💎 QQQ", qqq_price, qqq_change)
-with k2:
-    safe_metric("🟩 NVDA", nvda_price, nvda_change)
-with k3:
-    safe_metric("🛡️ VIX", vix_price, vix_change)
-with k4:
-    safe_metric("🏛️ 10년물 금리", tnx_price, tnx_change)
-with k5:
-    safe_metric("💵 DXY", dxy_price, dxy_change)
-with k6:
-    safe_metric("🔲 SMH", smh_price, smh_change)
+for row_start in range(0, len(top_metric_list), 5):
+    cols = st.columns(5)
+    for idx, (label, symbol) in enumerate(top_metric_list[row_start:row_start + 5]):
+        price, change = get_metric(df, symbol)
+        with cols[idx]:
+            safe_metric(label, price, change)
 
 st.markdown("")
 
@@ -460,7 +470,7 @@ with left:
     selected_name = st.selectbox(
         "차트 종목",
         list(tickers.keys()),
-        index=1,
+        index=0,
         label_visibility="collapsed"
     )
 
@@ -484,7 +494,7 @@ with left:
         fig.update_layout(
             title=f"{selected_name} ({selected_symbol})",
             template="plotly_dark",
-            height=500,
+            height=560,
             xaxis_rangeslider_visible=False,
             margin=dict(l=12, r=12, t=42, b=12),
             paper_bgcolor="rgba(0,0,0,0)",
@@ -553,14 +563,28 @@ with right:
 # =========================
 # News
 # =========================
-st.markdown('<div class="panel-title">📰 주요 시장 뉴스</div>', unsafe_allow_html=True)
+news_title_col, news_btn_col = st.columns([5, 1])
+
+with news_title_col:
+    st.markdown('<div class="panel-title">📰 주요 시장 뉴스</div>', unsafe_allow_html=True)
+
+with news_btn_col:
+    if "show_all_news" not in st.session_state:
+        st.session_state.show_all_news = False
+
+    if st.button(
+        "전체보기" if not st.session_state.show_all_news else "접기",
+        use_container_width=True
+    ):
+        st.session_state.show_all_news = not st.session_state.show_all_news
 
 news_df = get_market_news()
+news_count = 8 if st.session_state.show_all_news else 4
 
 if not news_df.empty:
     news_cols = st.columns(4)
 
-    for idx, row in news_df.head(8).iterrows():
+    for idx, row in news_df.head(news_count).iterrows():
         with news_cols[idx % 4]:
             st.markdown(
                 f"""
@@ -585,16 +609,16 @@ st.markdown('<div class="panel-title">📊 전체 시장 데이터</div>', unsaf
 
 table_left, table_right = st.columns(2)
 
-market_df = df.iloc[:10].copy()
-stock_df = df.iloc[10:].copy()
+market_df = df.iloc[:13].copy()
+stock_df = df.iloc[13:].copy()
 
 with table_left:
-    st.caption("지수 / 거시 / 섹터")
+    st.caption("지수 / 거시 / 선물 / 원자재 / 섹터")
     st.dataframe(
         market_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
         hide_index=True,
-        height=300
+        height=430
     )
 
 with table_right:
@@ -603,8 +627,8 @@ with table_right:
         stock_df.style.map(color_change, subset=["변동률(%)"]),
         use_container_width=True,
         hide_index=True,
-        height=300
+        height=430
     )
 
-st.caption(f"마지막 갱신 시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption(f"마지막 갱신 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다.")
