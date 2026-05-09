@@ -254,7 +254,7 @@ def color_change(value):
         return "color: #ff5252"
     return ""
 
-styled_df = df.style.applymap(
+styled_df = df.style.map(
     color_change,
     subset=["변동률(%)"]
 )
