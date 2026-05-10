@@ -182,6 +182,88 @@ div[data-testid="stDataFrame"] {
 button {
     border-radius: 10px !important;
 }
+
+/* 상단 롤링 티커 */
+.ticker-wrap {
+    width: 100%;
+    min-height: 106px;
+    background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(8,13,22,0.96));
+    border: 1px solid #26364c;
+    border-radius: 18px;
+    padding: 12px 15px;
+    overflow: hidden;
+}
+
+.ticker-title {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.ticker-window {
+    height: 28px;
+    overflow: hidden;
+    position: relative;
+    border-bottom: 1px solid rgba(38,54,76,0.7);
+    margin-bottom: 8px;
+}
+
+.ticker-track-news {
+    animation: slideNews 12s infinite;
+}
+
+.ticker-track-comment {
+    animation: slideComment 12s infinite;
+}
+
+.ticker-item {
+    height: 28px;
+    font-size: 0.86rem;
+    color: #e5e7eb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes slideNews {
+    0% { transform: translateY(0px); }
+    22% { transform: translateY(0px); }
+    25% { transform: translateY(-28px); }
+    47% { transform: translateY(-28px); }
+    50% { transform: translateY(-56px); }
+    72% { transform: translateY(-56px); }
+    75% { transform: translateY(-84px); }
+    97% { transform: translateY(-84px); }
+    100% { transform: translateY(0px); }
+}
+
+@keyframes slideComment {
+    0% { transform: translateY(0px); }
+    22% { transform: translateY(0px); }
+    25% { transform: translateY(-28px); }
+    47% { transform: translateY(-28px); }
+    50% { transform: translateY(-56px); }
+    72% { transform: translateY(-56px); }
+    75% { transform: translateY(-84px); }
+    97% { transform: translateY(-84px); }
+    100% { transform: translateY(0px); }
+}
+
+.monitor-row {
+    border-bottom: 1px solid #26364c;
+    padding: 9px 0;
+}
+
+.monitor-symbol {
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.monitor-sub {
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -273,6 +355,9 @@ korean_alias = {
     "crowdstrike": "CRWD",
     "팔로알토": "PANW",
     "palo alto": "PANW",
+    "로켓랩": "RKLB",
+    "rocket lab": "RKLB",
+    "rklb": "RKLB",
     "나스닥": "QQQ",
     "qqq": "QQQ",
     "티큐": "TQQQ",
@@ -290,6 +375,18 @@ korean_alias = {
 def normalize_search_query(query):
     key = query.strip().lower()
     return korean_alias.get(key, query.strip())
+
+# =========================
+# 세션 상태
+# =========================
+if "show_market_briefing" not in st.session_state:
+    st.session_state.show_market_briefing = False
+
+if "show_all_news" not in st.session_state:
+    st.session_state.show_all_news = False
+
+if "focus_symbols" not in st.session_state:
+    st.session_state.focus_symbols = []
 
 # =========================
 # Sidebar
@@ -866,6 +963,62 @@ else:
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
 
 # =========================
+# 시장 코멘트 생성
+# =========================
+def build_market_comments():
+    comments = []
+
+    if smh_change is not None:
+        if smh_change >= 3:
+            comments.append("🟢 반도체 강세: AI/반도체 섹터 모멘텀이 우호적입니다.")
+        elif smh_change <= -2:
+            comments.append("🔴 반도체 약세: 성장주와 AI 관련주에 부담 가능성이 있습니다.")
+        else:
+            comments.append("🟡 반도체 중립: 뚜렷한 방향성은 제한적입니다.")
+
+    if qqq_change is not None:
+        if qqq_change >= 1.5:
+            comments.append("🟢 나스닥 강세: 성장주 중심 위험선호가 나타나고 있습니다.")
+        elif qqq_change <= -1.5:
+            comments.append("🔴 나스닥 약세: 성장주 비중 확대는 신중한 구간입니다.")
+        else:
+            comments.append("🟡 나스닥 중립: 방향성 확인이 필요합니다.")
+
+    if vix_price is not None:
+        if vix_price >= 25:
+            comments.append("🔴 변동성 확대: 시장 불안 심리가 커진 상태입니다.")
+        elif vix_price <= 18:
+            comments.append("🟢 변동성 안정: 위험자산에 상대적으로 우호적입니다.")
+        else:
+            comments.append("🟡 변동성 보통: 급격한 공포 신호는 제한적입니다.")
+
+    if tnx_change is not None:
+        if tnx_change >= 1:
+            comments.append("🔴 금리 상승 부담: 빅테크 밸류에이션에 부담 요인입니다.")
+        elif tnx_change <= -1:
+            comments.append("🟢 금리 하락 우호: 성장주에는 상대적으로 우호적입니다.")
+        else:
+            comments.append("🟡 금리 중립: 시장 영향은 제한적입니다.")
+
+    if dxy_change is not None:
+        if dxy_change >= 0.5:
+            comments.append("🔴 달러 강세: 위험자산에는 부담 요인입니다.")
+        elif dxy_change <= -0.5:
+            comments.append("🟢 달러 약세: 위험자산 선호에 우호적일 수 있습니다.")
+        else:
+            comments.append("🟡 달러 중립: 달러 움직임은 제한적입니다.")
+
+    if not comments:
+        comments.append("🟡 데이터 확인 중: 시장 코멘트를 생성할 정보가 부족합니다.")
+
+    while len(comments) < 4:
+        comments.append(market_comment)
+
+    return comments[:4]
+
+market_comments = build_market_comments()
+
+# =========================
 # 오늘의 시장 평가 텍스트
 # =========================
 def build_market_briefing():
@@ -908,25 +1061,50 @@ def build_market_briefing():
 이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
 """
 
-if "show_market_briefing" not in st.session_state:
-    st.session_state.show_market_briefing = False
-
 # =========================
 # Header
 # =========================
-header_left, header_right = st.columns([3.2, 1])
+header_left, header_right = st.columns([2.25, 1.35])
 
 with header_left:
     st.title("📈 나스닥 시황 모니터링 대시보드")
     st.caption("나스닥100 · 성장주 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 시장 판단 시스템")
 
 with header_right:
+    news_items = news_df.head(4)["뉴스 제목"].tolist() if not news_df.empty else ["뉴스 데이터를 불러오는 중입니다."]
+    while len(news_items) < 4:
+        news_items.append("뉴스 데이터를 불러오는 중입니다.")
+
     st.markdown(
         f"""
-        <div style="text-align:right; padding-top:10px;">
-            <div style="font-size:0.85rem; color:#94a3b8;">시장 상태</div>
-            <div class="status-pill">{market_emoji} {market_status}</div>
-            <div style="font-size:0.8rem; color:#94a3b8; margin-top:10px;">{market_comment}</div>
+        <div class="ticker-wrap">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <div style="font-size:0.78rem; color:#94a3b8;">시장 상태</div>
+                    <div class="status-pill">{market_emoji} {market_status}</div>
+                </div>
+                <div style="font-size:0.78rem; color:#94a3b8; text-align:right;">{get_kst_now().strftime('%H:%M:%S')} KST</div>
+            </div>
+
+            <div class="ticker-title">📰 주요 뉴스</div>
+            <div class="ticker-window">
+                <div class="ticker-track-news">
+                    <div class="ticker-item">{news_items[0]}</div>
+                    <div class="ticker-item">{news_items[1]}</div>
+                    <div class="ticker-item">{news_items[2]}</div>
+                    <div class="ticker-item">{news_items[3]}</div>
+                </div>
+            </div>
+
+            <div class="ticker-title">🧠 시장 코멘트</div>
+            <div class="ticker-window">
+                <div class="ticker-track-comment">
+                    <div class="ticker-item">{market_comments[0]}</div>
+                    <div class="ticker-item">{market_comments[1]}</div>
+                    <div class="ticker-item">{market_comments[2]}</div>
+                    <div class="ticker-item">{market_comments[3]}</div>
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True
@@ -1032,7 +1210,7 @@ with left:
 
     stock_search_query = st.text_input(
         "종목명 또는 티커 검색",
-        placeholder="예: 엔비디아, 솔리드파워, SLDP, NVDA, 테슬라, SOXL",
+        placeholder="예: 엔비디아, 솔리드파워, 로켓랩, SLDP, NVDA, SOXL",
         key="stock_search_box"
     )
 
@@ -1068,6 +1246,19 @@ with left:
                     dxy_change,
                     smh_change
                 )
+
+                add_col, clear_col = st.columns([1, 1])
+
+                with add_col:
+                    if st.button(f"⭐ {selected_symbol_for_analysis} 보유/관심종목 추가", use_container_width=True):
+                        if selected_symbol_for_analysis not in st.session_state.focus_symbols:
+                            st.session_state.focus_symbols.append(selected_symbol_for_analysis)
+                            st.success(f"{selected_symbol_for_analysis} 추가 완료")
+                        else:
+                            st.info(f"{selected_symbol_for_analysis}는 이미 등록되어 있습니다.")
+
+                with clear_col:
+                    st.caption("오른쪽의 보유/관심종목 모니터링 패널에서 집중 확인됩니다.")
 
                 s1, s2, s3, s4 = st.columns(4)
 
@@ -1210,7 +1401,7 @@ with right:
             alert_df.style.map(color_change, subset=["변동률(%)"]),
             use_container_width=True,
             hide_index=True,
-            height=255
+            height=235
         )
     else:
         st.success("급등락/거래량 이상 신호 없음")
@@ -1222,128 +1413,53 @@ with right:
             candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]],
             use_container_width=True,
             hide_index=True,
-            height=260
+            height=235
         )
     else:
         st.info("관심 후보 데이터 없음")
 
-# =========================
-# 실시간 시장 코멘트
-# =========================
-st.markdown('<div class="panel-title">🧠 실시간 시장 코멘트</div>', unsafe_allow_html=True)
+    # =========================
+    # 보유/관심종목 모니터링
+    # =========================
+    st.markdown('<div class="panel-title">⭐ 보유/관심종목 모니터링</div>', unsafe_allow_html=True)
 
-comments = []
+    if st.session_state.focus_symbols:
+        for symbol in list(st.session_state.focus_symbols):
+            data = get_searched_stock_data(symbol)
 
-if smh_change is not None:
-    if smh_change >= 3:
-        comments.append(("🟢 반도체 강세", "SMH가 강하게 상승 중입니다. AI/반도체 섹터 모멘텀이 우호적입니다.", "강세 관찰"))
-    elif smh_change <= -2:
-        comments.append(("🔴 반도체 약세", "SMH가 약세입니다. 성장주와 AI 관련주에 부담이 될 수 있습니다.", "주의"))
-    else:
-        comments.append(("🟡 반도체 중립", "반도체 섹터는 뚜렷한 방향성이 크지 않습니다.", "관망"))
+            if data:
+                change = data["change"]
+                change_class = "badge-green" if change >= 0 else "badge-red"
 
-if qqq_change is not None:
-    if qqq_change >= 1.5:
-        comments.append(("🟢 나스닥 강세", "QQQ가 강세입니다. 성장주 중심 위험선호가 나타나고 있습니다.", "강세 관찰"))
-    elif qqq_change <= -1.5:
-        comments.append(("🔴 나스닥 약세", "QQQ가 약세입니다. 성장주 비중 확대는 신중할 필요가 있습니다.", "리스크 경계"))
-    else:
-        comments.append(("🟡 나스닥 중립", "QQQ는 제한적 움직임입니다. 방향성 확인이 필요합니다.", "관망"))
-
-if vix_price is not None:
-    if vix_price >= 25:
-        comments.append(("🔴 변동성 확대", "VIX가 높은 구간입니다. 시장 불안 심리가 커진 상태입니다.", "방어적 관망"))
-    elif vix_price <= 18:
-        comments.append(("🟢 변동성 안정", "VIX가 안정권입니다. 위험자산에 상대적으로 우호적인 환경입니다.", "우호적"))
-    else:
-        comments.append(("🟡 변동성 보통", "VIX는 중립 구간입니다. 급격한 공포 신호는 제한적입니다.", "관망"))
-
-if tnx_change is not None:
-    if tnx_change >= 1:
-        comments.append(("🔴 금리 상승 부담", "10년물 금리가 상승 중입니다. 빅테크와 성장주 밸류에이션에 부담이 될 수 있습니다.", "주의"))
-    elif tnx_change <= -1:
-        comments.append(("🟢 금리 하락 우호", "10년물 금리가 하락 중입니다. 성장주에는 상대적으로 우호적입니다.", "우호적"))
-    else:
-        comments.append(("🟡 금리 중립", "금리 변화가 크지 않아 시장 영향은 제한적입니다.", "관망"))
-
-if dxy_change is not None:
-    if dxy_change >= 0.5:
-        comments.append(("🔴 달러 강세", "달러 인덱스가 상승 중입니다. 위험자산과 신흥시장에는 부담 요인입니다.", "주의"))
-    elif dxy_change <= -0.5:
-        comments.append(("🟢 달러 약세", "달러가 약세입니다. 위험자산 선호에 우호적일 수 있습니다.", "우호적"))
-    else:
-        comments.append(("🟡 달러 중립", "달러 움직임은 제한적입니다.", "관망"))
-
-volume_spike = df[
-    (df["평균거래량대비"].notna()) &
-    (df["평균거래량대비"] >= 1.8)
-].sort_values("평균거래량대비", ascending=False)
-
-if not volume_spike.empty:
-    top_volume = volume_spike.iloc[0]
-    comments.append((
-        "📊 거래량 증가",
-        f"{top_volume['이름']}({top_volume['티커']}) 거래량이 평균 대비 {top_volume['평균거래량대비']}배 수준입니다.",
-        "추적 필요"
-    ))
-
-comments = comments[:6]
-
-comment_cols = st.columns(3)
-
-for idx, (title, desc, signal) in enumerate(comments):
-    with comment_cols[idx % 3]:
-        st.markdown(
-            f"""
-            <div class="panel">
-                <div class="comment-title">{title}</div>
-                <div class="comment-desc">{desc}</div>
-                <div class="comment-signal">판단: {signal}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-# =========================
-# News
-# =========================
-news_title_col, news_btn_col = st.columns([5, 1])
-
-with news_title_col:
-    st.markdown('<div class="panel-title">📰 주요 시장 뉴스</div>', unsafe_allow_html=True)
-
-with news_btn_col:
-    if "show_all_news" not in st.session_state:
-        st.session_state.show_all_news = False
-
-    if st.button(
-        "전체보기" if not st.session_state.show_all_news else "접기",
-        use_container_width=True
-    ):
-        st.session_state.show_all_news = not st.session_state.show_all_news
-
-news_count = 8 if st.session_state.show_all_news else 4
-
-if not news_df.empty:
-    news_cols = st.columns(4)
-
-    for idx, row in news_df.head(news_count).iterrows():
-        with news_cols[idx % 4]:
-            st.markdown(
-                f"""
-                <div class="news-card">
-                    <div class="news-meta">{row['분위기']} | {row['분류']}</div>
-                    <div class="news-title">
-                        <a href="{row['링크']}" target="_blank">{row['뉴스 제목']}</a>
+                st.markdown(
+                    f"""
+                    <div class="panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div class="monitor-symbol">{data['name']} ({symbol})</div>
+                                <div class="monitor-sub">{data['sector']} · {data['industry']}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:800; font-size:1.1rem;">{data['price']}</div>
+                                <div class="{change_class}">{data['change']}%</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:10px; display:flex; justify-content:space-between; color:#cbd5e1; font-size:0.82rem;">
+                            <span>거래량 {data['volume']:,}</span>
+                            <span>평균대비 {data['volume_ratio'] if data['volume_ratio'] else 'N/A'}배</span>
+                        </div>
                     </div>
-                    <div class="news-link">더 보기 →</div>
-                    <div class="news-meta">{row['시간']}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-else:
-    st.warning("뉴스 데이터를 불러오지 못했습니다.")
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                if st.button(f"삭제: {symbol}", key=f"remove_{symbol}", use_container_width=True):
+                    st.session_state.focus_symbols.remove(symbol)
+                    st.rerun()
+            else:
+                st.warning(f"{symbol} 데이터를 불러오지 못했습니다.")
+    else:
+        st.info("종목 검색 분석에서 보유/관심종목을 추가하세요.")
 
 # =========================
 # Market Table
