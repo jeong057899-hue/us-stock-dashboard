@@ -6,6 +6,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import feedparser
 import requests
+import html
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
@@ -183,78 +185,6 @@ button {
     border-radius: 10px !important;
 }
 
-/* 상단 롤링 티커 */
-.ticker-wrap {
-    width: 100%;
-    min-height: 106px;
-    background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(8,13,22,0.96));
-    border: 1px solid #26364c;
-    border-radius: 18px;
-    padding: 12px 15px;
-    overflow: hidden;
-}
-
-.ticker-title {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    margin-bottom: 6px;
-    font-weight: 700;
-}
-
-.ticker-window {
-    height: 28px;
-    overflow: hidden;
-    position: relative;
-    border-bottom: 1px solid rgba(38,54,76,0.7);
-    margin-bottom: 8px;
-}
-
-.ticker-track-news {
-    animation: slideNews 12s infinite;
-}
-
-.ticker-track-comment {
-    animation: slideComment 12s infinite;
-}
-
-.ticker-item {
-    height: 28px;
-    font-size: 0.86rem;
-    color: #e5e7eb;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-@keyframes slideNews {
-    0% { transform: translateY(0px); }
-    22% { transform: translateY(0px); }
-    25% { transform: translateY(-28px); }
-    47% { transform: translateY(-28px); }
-    50% { transform: translateY(-56px); }
-    72% { transform: translateY(-56px); }
-    75% { transform: translateY(-84px); }
-    97% { transform: translateY(-84px); }
-    100% { transform: translateY(0px); }
-}
-
-@keyframes slideComment {
-    0% { transform: translateY(0px); }
-    22% { transform: translateY(0px); }
-    25% { transform: translateY(-28px); }
-    47% { transform: translateY(-28px); }
-    50% { transform: translateY(-56px); }
-    72% { transform: translateY(-56px); }
-    75% { transform: translateY(-84px); }
-    97% { transform: translateY(-84px); }
-    100% { transform: translateY(0px); }
-}
-
-.monitor-row {
-    border-bottom: 1px solid #26364c;
-    padding: 9px 0;
-}
-
 .monitor-symbol {
     font-weight: 800;
     color: #f8fafc;
@@ -264,6 +194,30 @@ button {
     color: #94a3b8;
     font-size: 0.78rem;
 }
+
+#MainMenu {
+    visibility: hidden;
+}
+
+#GithubIcon {
+    visibility: hidden;
+}
+
+[data-testid="stToolbar"] {
+    display: none !important;
+}
+
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+[data-testid="stStatusWidget"] {
+    display: none !important;
+}
+
+footer {
+    visibility: hidden;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -272,6 +226,7 @@ button {
 # =========================
 def get_kst_now():
     return datetime.now(ZoneInfo("Asia/Seoul"))
+
 
 # =========================
 # 한글 별칭 사전
@@ -372,9 +327,11 @@ korean_alias = {
     "btc": "BTC-USD",
 }
 
+
 def normalize_search_query(query):
     key = query.strip().lower()
     return korean_alias.get(key, query.strip())
+
 
 # =========================
 # 세션 상태
@@ -382,11 +339,9 @@ def normalize_search_query(query):
 if "show_market_briefing" not in st.session_state:
     st.session_state.show_market_briefing = False
 
-if "show_all_news" not in st.session_state:
-    st.session_state.show_all_news = False
-
 if "focus_symbols" not in st.session_state:
     st.session_state.focus_symbols = []
+
 
 # =========================
 # Sidebar
@@ -394,7 +349,12 @@ if "focus_symbols" not in st.session_state:
 st.sidebar.title("⚙️ 설정")
 
 auto_refresh = st.sidebar.checkbox("자동 갱신", value=False)
-refresh_seconds = st.sidebar.selectbox("갱신 주기", [30, 60, 120, 300], index=1)
+
+refresh_seconds = st.sidebar.selectbox(
+    "갱신 주기",
+    [15, 30, 60, 120, 300],
+    index=2
+)
 
 if auto_refresh:
     st_autorefresh(interval=refresh_seconds * 1000, key="auto_refresh")
@@ -435,6 +395,7 @@ economic_memo = st.sidebar.text_area(
 st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
 st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
+
 
 # =========================
 # 자산 목록
@@ -480,6 +441,7 @@ tickers.update(watchlist_assets)
 if custom_symbol:
     tickers[f"검색 추가: {custom_symbol}"] = custom_symbol
 
+
 # =========================
 # 데이터 함수
 # =========================
@@ -497,7 +459,6 @@ def get_price_data(ticker_dict):
                 current_price = hist["Close"].iloc[-1]
                 change_pct = ((current_price - prev_close) / prev_close) * 100
                 volume = hist["Volume"].iloc[-1]
-
                 avg_volume = hist["Volume"].iloc[-21:-1].mean()
                 volume_ratio = None if pd.isna(avg_volume) or avg_volume == 0 else volume / avg_volume
 
@@ -536,10 +497,12 @@ def get_price_data(ticker_dict):
 
     return df_result
 
+
 @st.cache_data(ttl=60)
 def get_chart_data(symbol, period, interval):
     stock = yf.Ticker(symbol)
     return stock.history(period=period, interval=interval)
+
 
 @st.cache_data(ttl=300)
 def get_market_news():
@@ -599,6 +562,7 @@ def get_market_news():
 
     return pd.DataFrame(news_list[:16])
 
+
 @st.cache_data(ttl=300)
 def search_yahoo_symbols(query):
     if not query:
@@ -621,7 +585,6 @@ def search_yahoo_symbols(query):
         r = requests.get(url, params=params, headers=headers, timeout=8)
         data = r.json()
         quotes = data.get("quotes", [])
-
         results = []
 
         for q in quotes:
@@ -650,6 +613,7 @@ def search_yahoo_symbols(query):
 
     except Exception:
         return []
+
 
 @st.cache_data(ttl=120)
 def get_searched_stock_data(symbol):
@@ -691,6 +655,7 @@ def get_searched_stock_data(symbol):
     except Exception:
         return None
 
+
 @st.cache_data(ttl=300)
 def get_stock_specific_news(symbol):
     try:
@@ -711,11 +676,13 @@ def get_stock_specific_news(symbol):
     except Exception:
         return []
 
+
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
     if row.empty:
         return None, None
     return row["현재가"].values[0], row["변동률(%)"].values[0]
+
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -725,6 +692,7 @@ def safe_metric(label, value, delta=None):
     else:
         st.metric(label, value, f"{delta}%")
 
+
 def color_change(value):
     if pd.isna(value):
         return ""
@@ -733,6 +701,7 @@ def color_change(value):
     if value < 0:
         return "color: #ef4444; font-weight: 700"
     return ""
+
 
 def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_change, dxy_change, smh_change):
     score = 0
@@ -828,6 +797,7 @@ def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_ch
 
     return final_signal, comment, reasons, score
 
+
 def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     candidate_df = dataframe[dataframe["티커"].isin(watchlist_assets.values())].copy()
 
@@ -908,6 +878,7 @@ def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     result = pd.DataFrame(scores)
     return result.sort_values("점수", ascending=False)
 
+
 # =========================
 # 데이터 로드
 # =========================
@@ -961,6 +932,7 @@ else:
     market_status = "중립"
     market_emoji = "🟡"
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
+
 
 # =========================
 # 시장 코멘트 생성
@@ -1016,7 +988,9 @@ def build_market_comments():
 
     return comments[:4]
 
+
 market_comments = build_market_comments()
+
 
 # =========================
 # 오늘의 시장 평가 텍스트
@@ -1061,6 +1035,7 @@ def build_market_briefing():
 이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
 """
 
+
 # =========================
 # Header
 # =========================
@@ -1075,40 +1050,129 @@ with header_right:
     while len(news_items) < 4:
         news_items.append("뉴스 데이터를 불러오는 중입니다.")
 
-    st.markdown(
-        f"""
+    safe_news_items = [html.escape(str(item)) for item in news_items[:4]]
+    safe_market_comments = [html.escape(str(item)) for item in market_comments[:4]]
+
+    rolling_html = f"""
+    <html>
+    <head>
+    <style>
+        body {{
+            margin: 0;
+            background: transparent;
+            font-family: Arial, sans-serif;
+            color: #f8fafc;
+        }}
+
+        .ticker-wrap {{
+            width: 100%;
+            min-height: 128px;
+            background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(8,13,22,0.96));
+            border: 1px solid #26364c;
+            border-radius: 18px;
+            padding: 12px 15px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }}
+
+        .top-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }}
+
+        .status-pill {{
+            display: inline-flex;
+            align-items: center;
+            padding: 7px 16px;
+            border-radius: 999px;
+            background: rgba(34,197,94,0.10);
+            border: 1px solid rgba(34,197,94,0.35);
+            color: #86efac;
+            font-weight: 800;
+            font-size: 15px;
+        }}
+
+        .time {{
+            font-size: 12px;
+            color: #94a3b8;
+        }}
+
+        .ticker-title {{
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }}
+
+        .ticker-window {{
+            height: 28px;
+            overflow: hidden;
+            position: relative;
+            border-bottom: 1px solid rgba(38,54,76,0.7);
+            margin-bottom: 8px;
+        }}
+
+        .ticker-track {{
+            animation: slideTicker 12s infinite;
+        }}
+
+        .ticker-item {{
+            height: 28px;
+            line-height: 28px;
+            font-size: 13px;
+            color: #e5e7eb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        @keyframes slideTicker {{
+            0% {{ transform: translateY(0px); }}
+            22% {{ transform: translateY(0px); }}
+            25% {{ transform: translateY(-28px); }}
+            47% {{ transform: translateY(-28px); }}
+            50% {{ transform: translateY(-56px); }}
+            72% {{ transform: translateY(-56px); }}
+            75% {{ transform: translateY(-84px); }}
+            97% {{ transform: translateY(-84px); }}
+            100% {{ transform: translateY(0px); }}
+        }}
+    </style>
+    </head>
+    <body>
         <div class="ticker-wrap">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <div>
-                    <div style="font-size:0.78rem; color:#94a3b8;">시장 상태</div>
-                    <div class="status-pill">{market_emoji} {market_status}</div>
-                </div>
-                <div style="font-size:0.78rem; color:#94a3b8; text-align:right;">{get_kst_now().strftime('%H:%M:%S')} KST</div>
+            <div class="top-row">
+                <div class="status-pill">{market_emoji} {market_status}</div>
+                <div class="time">{get_kst_now().strftime('%H:%M:%S')} KST</div>
             </div>
 
             <div class="ticker-title">📰 주요 뉴스</div>
             <div class="ticker-window">
-                <div class="ticker-track-news">
-                    <div class="ticker-item">{news_items[0]}</div>
-                    <div class="ticker-item">{news_items[1]}</div>
-                    <div class="ticker-item">{news_items[2]}</div>
-                    <div class="ticker-item">{news_items[3]}</div>
+                <div class="ticker-track">
+                    <div class="ticker-item">{safe_news_items[0]}</div>
+                    <div class="ticker-item">{safe_news_items[1]}</div>
+                    <div class="ticker-item">{safe_news_items[2]}</div>
+                    <div class="ticker-item">{safe_news_items[3]}</div>
                 </div>
             </div>
 
             <div class="ticker-title">🧠 시장 코멘트</div>
             <div class="ticker-window">
-                <div class="ticker-track-comment">
-                    <div class="ticker-item">{market_comments[0]}</div>
-                    <div class="ticker-item">{market_comments[1]}</div>
-                    <div class="ticker-item">{market_comments[2]}</div>
-                    <div class="ticker-item">{market_comments[3]}</div>
+                <div class="ticker-track">
+                    <div class="ticker-item">{safe_market_comments[0]}</div>
+                    <div class="ticker-item">{safe_market_comments[1]}</div>
+                    <div class="ticker-item">{safe_market_comments[2]}</div>
+                    <div class="ticker-item">{safe_market_comments[3]}</div>
                 </div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </body>
+    </html>
+    """
+
+    components.html(rolling_html, height=145)
 
 if hasattr(st, "dialog"):
     @st.dialog("오늘의 실시간 시장현황")
@@ -1125,6 +1189,7 @@ else:
     if st.session_state.show_market_briefing:
         with st.expander("오늘의 실시간 시장현황", expanded=True):
             st.markdown(build_market_briefing())
+
 
 # =========================
 # Key Metrics
@@ -1155,6 +1220,7 @@ for row_start in range(0, len(top_metric_list), 5):
             safe_metric(label, price, change)
 
 st.markdown("")
+
 
 # =========================
 # Main Layout
@@ -1203,9 +1269,6 @@ with left:
     else:
         st.warning("차트 데이터를 불러오지 못했습니다.")
 
-    # =========================
-    # 종목 검색 분석
-    # =========================
     st.markdown('<div class="panel-title">🔍 종목 검색 분석</div>', unsafe_allow_html=True)
 
     stock_search_query = st.text_input(
@@ -1247,7 +1310,7 @@ with left:
                     smh_change
                 )
 
-                add_col, clear_col = st.columns([1, 1])
+                add_col, info_col = st.columns([1, 1])
 
                 with add_col:
                     if st.button(f"⭐ {selected_symbol_for_analysis} 보유/관심종목 추가", use_container_width=True):
@@ -1257,8 +1320,8 @@ with left:
                         else:
                             st.info(f"{selected_symbol_for_analysis}는 이미 등록되어 있습니다.")
 
-                with clear_col:
-                    st.caption("오른쪽의 보유/관심종목 모니터링 패널에서 집중 확인됩니다.")
+                with info_col:
+                    st.caption("오른쪽 보유/관심종목 모니터링 패널에서 집중 확인됩니다.")
 
                 s1, s2, s3, s4 = st.columns(4)
 
@@ -1350,6 +1413,7 @@ with left:
         else:
             st.warning("검색 결과가 없습니다. 한글명은 등록된 별칭만 지원하며, 영문명 또는 티커 입력이 가장 정확합니다.")
 
+
 with middle:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
 
@@ -1385,6 +1449,7 @@ with middle:
         unsafe_allow_html=True
     )
 
+
 with right:
     st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
 
@@ -1418,9 +1483,6 @@ with right:
     else:
         st.info("관심 후보 데이터 없음")
 
-    # =========================
-    # 보유/관심종목 모니터링
-    # =========================
     st.markdown('<div class="panel-title">⭐ 보유/관심종목 모니터링</div>', unsafe_allow_html=True)
 
     if st.session_state.focus_symbols:
@@ -1460,6 +1522,7 @@ with right:
                 st.warning(f"{symbol} 데이터를 불러오지 못했습니다.")
     else:
         st.info("종목 검색 분석에서 보유/관심종목을 추가하세요.")
+
 
 # =========================
 # Market Table
