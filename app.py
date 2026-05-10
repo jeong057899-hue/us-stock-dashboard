@@ -17,324 +17,355 @@ st.set_page_config(
 )
 
 # =========================
+# Sidebar - Theme First
+# =========================
+st.sidebar.title("⚙️ 설정")
+
+theme_mode = st.sidebar.selectbox(
+    "화면 테마",
+    ["다크 모드", "라이트 모드"],
+    index=0
+)
+
+if theme_mode == "라이트 모드":
+    APP_BG = "linear-gradient(135deg, #f8fafc 0%, #e5edf7 45%, #f8fafc 100%)"
+    SIDEBAR_BG = "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)"
+    PANEL_BG = "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(241,245,249,0.96))"
+    TEXT_MAIN = "#0f172a"
+    TEXT_SUB = "#475569"
+    BORDER = "#cbd5e1"
+    INPUT_BG = "#ffffff"
+    PLOT_BG = "rgba(248,250,252,0.95)"
+    TICKER_BG = "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(241,245,249,0.96))"
+    TEMPLATE = "plotly_white"
+else:
+    APP_BG = "radial-gradient(circle at top left, #102033 0%, #080d16 45%, #05070d 100%)"
+    SIDEBAR_BG = "linear-gradient(180deg, #0c1524 0%, #07101d 100%)"
+    PANEL_BG = "linear-gradient(145deg, rgba(17,24,39,0.96), rgba(9,15,27,0.96))"
+    TEXT_MAIN = "#f8fafc"
+    TEXT_SUB = "#94a3b8"
+    BORDER = "#26364c"
+    INPUT_BG = "#0f172a"
+    PLOT_BG = "rgba(8,13,22,0.95)"
+    TICKER_BG = "linear-gradient(145deg, rgba(17,24,39,0.96), rgba(8,13,22,0.96))"
+    TEMPLATE = "plotly_dark"
+
+# =========================
 # CSS
 # =========================
-st.markdown("""
+st.markdown(f"""
 <style>
-.stApp {
-    background: radial-gradient(circle at top left, #102033 0%, #080d16 45%, #05070d 100%);
-    color: #f8fafc;
-}
+html, body, [data-testid="stAppViewContainer"] {{
+    background: {APP_BG} !important;
+}}
 
-.block-container {
-    padding-top: 1.1rem;
+.stApp {{
+    background: {APP_BG};
+    color: {TEXT_MAIN};
+}}
+
+header[data-testid="stHeader"] {{
+    background: transparent !important;
+    height: 2.2rem !important;
+}}
+
+[data-testid="stHeader"]::before {{
+    background: transparent !important;
+}}
+
+.block-container {{
+    padding-top: 0.35rem !important;
     padding-left: 1.6rem;
     padding-right: 1.6rem;
     max-width: 98.5vw !important;
-}
+}}
 
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0c1524 0%, #07101d 100%);
-    border-right: 1px solid #1e293b;
-}
+section[data-testid="stSidebar"] {{
+    background: {SIDEBAR_BG};
+    border-right: 1px solid {BORDER};
+}}
 
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg, #111827, #0b1322);
-    border: 1px solid #253449;
+section[data-testid="stSidebar"] * {{
+    color: {TEXT_MAIN};
+}}
+
+[data-testid="stMetric"] {{
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
     padding: 15px 17px;
     border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.20);
     min-height: 105px;
-}
+}}
 
-[data-testid="stMetricLabel"] {
-    color: #cbd5e1;
+[data-testid="stMetricLabel"] {{
+    color: {TEXT_SUB};
     font-size: 0.80rem;
-}
+}}
 
-[data-testid="stMetricValue"] {
+[data-testid="stMetricValue"] {{
+    color: {TEXT_MAIN};
     font-size: 1.50rem;
     font-weight: 750;
-}
+}}
 
-[data-testid="stMetricDelta"] {
+[data-testid="stMetricDelta"] {{
     font-size: 0.80rem;
-}
+}}
 
-.panel {
-    background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(9,15,27,0.96));
-    border: 1px solid #26364c;
+.panel {{
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
     border-radius: 18px;
     padding: 16px;
-    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.20);
     margin-bottom: 14px;
-}
+    color: {TEXT_MAIN};
+}}
 
-.panel-title {
+.panel-title {{
     font-size: 1.08rem;
     font-weight: 800;
     margin-bottom: 12px;
-    color: #f8fafc;
-}
+    color: {TEXT_MAIN};
+}}
 
-.status-pill {
+.status-pill {{
     display: inline-flex;
     align-items: center;
     padding: 7px 16px;
     border-radius: 999px;
     background: rgba(34,197,94,0.10);
     border: 1px solid rgba(34,197,94,0.35);
-    color: #86efac;
+    color: #22c55e;
     font-weight: 800;
     font-size: 1.05rem;
-}
+}}
 
-.news-card {
-    background: linear-gradient(145deg, #111827, #0a1220);
-    border: 1px solid #26364c;
+.news-card {{
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
     border-radius: 15px;
     padding: 14px;
     min-height: 132px;
     max-height: 132px;
     overflow: hidden;
     margin-bottom: 10px;
-}
+}}
 
-.news-card:hover {
+.news-card:hover {{
     transform: translateY(-2px);
     transition: 0.2s;
     border-color: #38bdf8;
-}
+}}
 
-.news-meta {
+.news-meta {{
     font-size: 0.74rem;
-    color: #94a3b8;
+    color: {TEXT_SUB};
     margin-bottom: 8px;
-}
+}}
 
-.news-title {
+.news-title {{
     font-size: 0.88rem;
     line-height: 1.35;
     font-weight: 700;
-}
+}}
 
-.news-title a {
-    color: #e5e7eb !important;
+.news-title a {{
+    color: {TEXT_MAIN} !important;
     text-decoration: none;
-}
+}}
 
-.news-title a:hover {
+.news-title a:hover {{
     color: #38bdf8 !important;
     text-decoration: underline;
-}
+}}
 
-.news-link {
+.news-link {{
     font-size: 0.8rem;
     color: #38bdf8;
     margin-top: 8px;
-}
+}}
 
-.badge-green {
+.badge-green {{
     color: #22c55e;
     font-weight: 800;
-}
+}}
 
-.badge-red {
+.badge-red {{
     color: #ef4444;
     font-weight: 800;
-}
+}}
 
-.badge-yellow {
+.badge-yellow {{
     color: #f59e0b;
     font-weight: 800;
-}
+}}
 
-.comment-title {
+.comment-title {{
     font-weight: 800;
     font-size: 0.92rem;
-}
+    color: {TEXT_MAIN};
+}}
 
-.comment-desc {
+.comment-desc {{
     font-size: 0.82rem;
-    color: #cbd5e1;
+    color: {TEXT_SUB};
     line-height: 1.4;
     margin-top: 5px;
-}
+}}
 
-.comment-signal {
+.comment-signal {{
     font-size: 0.78rem;
     color: #38bdf8;
     margin-top: 5px;
-}
+}}
 
-div[data-testid="stDataFrame"] {
-    border: 1px solid #26364c;
+div[data-testid="stDataFrame"] {{
+    border: 1px solid {BORDER};
     border-radius: 14px;
     overflow: hidden;
-}
+}}
 
 .stSelectbox > div > div,
 .stTextInput > div > div > input,
-.stTextArea textarea {
-    background-color: #0f172a !important;
-    border: 1px solid #26364c !important;
-    color: #f8fafc !important;
-}
+.stTextArea textarea {{
+    background-color: {INPUT_BG} !important;
+    border: 1px solid {BORDER} !important;
+    color: {TEXT_MAIN} !important;
+}}
 
-button {
+button {{
     border-radius: 10px !important;
-}
+}}
 
-.monitor-symbol {
-    font-weight: 800;
-    color: #f8fafc;
-}
+.focus-card {{
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
+    border-radius: 18px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    min-height: 118px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}}
 
-.monitor-sub {
-    color: #94a3b8;
+.focus-name {{
+    font-weight: 850;
+    font-size: 1.02rem;
+    color: {TEXT_MAIN};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}}
+
+.focus-sub {{
+    color: {TEXT_SUB};
     font-size: 0.78rem;
-}
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}}
 
-#MainMenu {
+.focus-price {{
+    font-weight: 850;
+    font-size: 1.18rem;
+    text-align: right;
+    color: {TEXT_MAIN};
+}}
+
+.focus-stat {{
+    color: {TEXT_SUB};
+    font-size: 0.78rem;
+}}
+
+/* Streamlit 기본 툴바/메뉴 숨김: 사이드바 여닫기 버튼은 유지 */
+#MainMenu {{
     visibility: hidden;
-}
+}}
 
-#GithubIcon {
+#GithubIcon {{
     visibility: hidden;
-}
+}}
 
-[data-testid="stToolbar"] {
+[data-testid="stToolbar"] {{
     display: none !important;
-}
+}}
 
-[data-testid="stDecoration"] {
+[data-testid="stDecoration"] {{
     display: none !important;
-}
+}}
 
-[data-testid="stStatusWidget"] {
+[data-testid="stStatusWidget"] {{
     display: none !important;
-}
+}}
 
-footer {
+footer {{
     visibility: hidden;
-}
+}}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# 시간
+# Time
 # =========================
 def get_kst_now():
     return datetime.now(ZoneInfo("Asia/Seoul"))
 
-
 # =========================
-# 한글 별칭 사전
+# Korean Alias
 # =========================
 korean_alias = {
-    "엔비디아": "NVDA",
-    "nvidia": "NVDA",
-    "엔비": "NVDA",
-    "애플": "AAPL",
-    "apple": "AAPL",
-    "마이크로소프트": "MSFT",
-    "마소": "MSFT",
-    "ms": "MSFT",
-    "아마존": "AMZN",
-    "amazon": "AMZN",
-    "메타": "META",
-    "페이스북": "META",
-    "테슬라": "TSLA",
-    "tesla": "TSLA",
-    "구글": "GOOGL",
-    "알파벳": "GOOGL",
-    "google": "GOOGL",
-    "amd": "AMD",
-    "에이엠디": "AMD",
-    "브로드컴": "AVGO",
-    "broadcom": "AVGO",
-    "넷플릭스": "NFLX",
-    "netflix": "NFLX",
-    "팔란티어": "PLTR",
-    "palantir": "PLTR",
-    "솔리드파워": "SLDP",
-    "solid power": "SLDP",
-    "sldp": "SLDP",
-    "tsmc": "TSM",
-    "대만반도체": "TSM",
-    "대만 반도체": "TSM",
-    "암홀딩스": "ARM",
-    "arm": "ARM",
-    "소파이": "SOFI",
-    "sofi": "SOFI",
-    "루시드": "LCID",
-    "lucid": "LCID",
-    "리비안": "RIVN",
-    "rivian": "RIVN",
-    "코인베이스": "COIN",
-    "coinbase": "COIN",
-    "마이크론": "MU",
-    "micron": "MU",
-    "인텔": "INTC",
-    "intel": "INTC",
-    "퀄컴": "QCOM",
-    "qualcomm": "QCOM",
-    "어도비": "ADBE",
-    "adobe": "ADBE",
-    "세일즈포스": "CRM",
-    "salesforce": "CRM",
-    "오라클": "ORCL",
-    "oracle": "ORCL",
-    "스노우플레이크": "SNOW",
-    "snowflake": "SNOW",
-    "슈퍼마이크로": "SMCI",
-    "슈마컴": "SMCI",
-    "supermicro": "SMCI",
-    "델": "DELL",
-    "dell": "DELL",
-    "아이온큐": "IONQ",
-    "ionq": "IONQ",
-    "로빈후드": "HOOD",
-    "hood": "HOOD",
-    "로블록스": "RBLX",
-    "roblox": "RBLX",
-    "우버": "UBER",
-    "uber": "UBER",
-    "스포티파이": "SPOT",
-    "spotify": "SPOT",
-    "쇼피파이": "SHOP",
-    "shopify": "SHOP",
-    "도큐사인": "DOCU",
-    "docusign": "DOCU",
-    "크라우드스트라이크": "CRWD",
-    "crowdstrike": "CRWD",
-    "팔로알토": "PANW",
-    "palo alto": "PANW",
-    "로켓랩": "RKLB",
-    "rocket lab": "RKLB",
-    "rklb": "RKLB",
-    "나스닥": "QQQ",
-    "qqq": "QQQ",
-    "티큐": "TQQQ",
-    "티큐큐큐": "TQQQ",
-    "tqqq": "TQQQ",
-    "속슬": "SOXL",
-    "soxl": "SOXL",
-    "spy": "SPY",
-    "s&p500": "SPY",
-    "비트코인": "BTC-USD",
-    "bitcoin": "BTC-USD",
-    "btc": "BTC-USD",
+    "엔비디아": "NVDA", "nvidia": "NVDA", "엔비": "NVDA",
+    "애플": "AAPL", "apple": "AAPL",
+    "마이크로소프트": "MSFT", "마소": "MSFT", "ms": "MSFT",
+    "아마존": "AMZN", "amazon": "AMZN",
+    "메타": "META", "페이스북": "META",
+    "테슬라": "TSLA", "tesla": "TSLA",
+    "구글": "GOOGL", "알파벳": "GOOGL", "google": "GOOGL",
+    "amd": "AMD", "에이엠디": "AMD",
+    "브로드컴": "AVGO", "broadcom": "AVGO",
+    "넷플릭스": "NFLX", "netflix": "NFLX",
+    "팔란티어": "PLTR", "palantir": "PLTR",
+    "솔리드파워": "SLDP", "solid power": "SLDP", "sldp": "SLDP",
+    "tsmc": "TSM", "대만반도체": "TSM", "대만 반도체": "TSM",
+    "암홀딩스": "ARM", "arm": "ARM",
+    "소파이": "SOFI", "sofi": "SOFI",
+    "루시드": "LCID", "lucid": "LCID",
+    "리비안": "RIVN", "rivian": "RIVN",
+    "코인베이스": "COIN", "coinbase": "COIN",
+    "마이크론": "MU", "micron": "MU",
+    "인텔": "INTC", "intel": "INTC",
+    "퀄컴": "QCOM", "qualcomm": "QCOM",
+    "어도비": "ADBE", "adobe": "ADBE",
+    "세일즈포스": "CRM", "salesforce": "CRM",
+    "오라클": "ORCL", "oracle": "ORCL",
+    "스노우플레이크": "SNOW", "snowflake": "SNOW",
+    "슈퍼마이크로": "SMCI", "슈마컴": "SMCI", "supermicro": "SMCI",
+    "델": "DELL", "dell": "DELL",
+    "아이온큐": "IONQ", "ionq": "IONQ",
+    "로빈후드": "HOOD", "hood": "HOOD",
+    "로블록스": "RBLX", "roblox": "RBLX",
+    "우버": "UBER", "uber": "UBER",
+    "스포티파이": "SPOT", "spotify": "SPOT",
+    "쇼피파이": "SHOP", "shopify": "SHOP",
+    "도큐사인": "DOCU", "docusign": "DOCU",
+    "크라우드스트라이크": "CRWD", "crowdstrike": "CRWD",
+    "팔로알토": "PANW", "palo alto": "PANW",
+    "로켓랩": "RKLB", "rocket lab": "RKLB", "rklb": "RKLB",
+    "나스닥": "QQQ", "qqq": "QQQ",
+    "티큐": "TQQQ", "티큐큐큐": "TQQQ", "tqqq": "TQQQ",
+    "속슬": "SOXL", "soxl": "SOXL",
+    "spy": "SPY", "s&p500": "SPY",
+    "비트코인": "BTC-USD", "bitcoin": "BTC-USD", "btc": "BTC-USD",
 }
-
 
 def normalize_search_query(query):
     key = query.strip().lower()
     return korean_alias.get(key, query.strip())
 
-
 # =========================
-# 세션 상태
+# Session State
 # =========================
 if "show_market_briefing" not in st.session_state:
     st.session_state.show_market_briefing = False
@@ -342,12 +373,9 @@ if "show_market_briefing" not in st.session_state:
 if "focus_symbols" not in st.session_state:
     st.session_state.focus_symbols = []
 
-
 # =========================
 # Sidebar
 # =========================
-st.sidebar.title("⚙️ 설정")
-
 auto_refresh = st.sidebar.checkbox("자동 갱신", value=False)
 
 refresh_seconds = st.sidebar.selectbox(
@@ -396,9 +424,8 @@ st.sidebar.divider()
 st.sidebar.info("무료 데이터 기반\n\nyfinance + Yahoo Finance RSS\n\n실시간 데이터는 지연될 수 있습니다.")
 st.sidebar.caption(f"마지막 갱신\n{get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 
-
 # =========================
-# 자산 목록
+# Assets
 # =========================
 market_assets = {
     "NASDAQ100 ETF": "QQQ",
@@ -441,9 +468,8 @@ tickers.update(watchlist_assets)
 if custom_symbol:
     tickers[f"검색 추가: {custom_symbol}"] = custom_symbol
 
-
 # =========================
-# 데이터 함수
+# Data Functions
 # =========================
 @st.cache_data(ttl=60)
 def get_price_data(ticker_dict):
@@ -497,12 +523,10 @@ def get_price_data(ticker_dict):
 
     return df_result
 
-
 @st.cache_data(ttl=60)
 def get_chart_data(symbol, period, interval):
     stock = yf.Ticker(symbol)
     return stock.history(period=period, interval=interval)
-
 
 @st.cache_data(ttl=300)
 def get_market_news():
@@ -562,7 +586,6 @@ def get_market_news():
 
     return pd.DataFrame(news_list[:16])
 
-
 @st.cache_data(ttl=300)
 def search_yahoo_symbols(query):
     if not query:
@@ -614,7 +637,6 @@ def search_yahoo_symbols(query):
     except Exception:
         return []
 
-
 @st.cache_data(ttl=120)
 def get_searched_stock_data(symbol):
     try:
@@ -655,7 +677,6 @@ def get_searched_stock_data(symbol):
     except Exception:
         return None
 
-
 @st.cache_data(ttl=300)
 def get_stock_specific_news(symbol):
     try:
@@ -676,13 +697,11 @@ def get_stock_specific_news(symbol):
     except Exception:
         return []
 
-
 def get_metric(dataframe, ticker):
     row = dataframe[dataframe["티커"] == ticker]
     if row.empty:
         return None, None
     return row["현재가"].values[0], row["변동률(%)"].values[0]
-
 
 def safe_metric(label, value, delta=None):
     if value is None or pd.isna(value):
@@ -692,7 +711,6 @@ def safe_metric(label, value, delta=None):
     else:
         st.metric(label, value, f"{delta}%")
 
-
 def color_change(value):
     if pd.isna(value):
         return ""
@@ -701,7 +719,6 @@ def color_change(value):
     if value < 0:
         return "color: #ef4444; font-weight: 700"
     return ""
-
 
 def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_change, dxy_change, smh_change):
     score = 0
@@ -797,7 +814,6 @@ def analyze_searched_stock(stock_data, stock_news, qqq_change, vix_price, tnx_ch
 
     return final_signal, comment, reasons, score
 
-
 def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     candidate_df = dataframe[dataframe["티커"].isin(watchlist_assets.values())].copy()
 
@@ -878,9 +894,8 @@ def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
     result = pd.DataFrame(scores)
     return result.sort_values("점수", ascending=False)
 
-
 # =========================
-# 데이터 로드
+# Data Load
 # =========================
 df = get_price_data(tickers)
 news_df = get_market_news()
@@ -888,7 +903,6 @@ news_df = get_market_news()
 qqq_price, qqq_change = get_metric(df, "QQQ")
 spy_price, spy_change = get_metric(df, "^GSPC")
 nasdaq_price, nasdaq_change = get_metric(df, "^IXIC")
-nvda_price, nvda_change = get_metric(df, "NVDA")
 vix_price, vix_change = get_metric(df, "^VIX")
 tnx_price, tnx_change = get_metric(df, "^TNX")
 dxy_price, dxy_change = get_metric(df, "DX-Y.NYB")
@@ -898,7 +912,7 @@ btc_price, btc_change = get_metric(df, "BTC-USD")
 candidate_df = score_candidates(df, news_df, vix_price, tnx_change, smh_change)
 
 # =========================
-# 시장 상태 판단
+# Market Status
 # =========================
 risk_score = 0
 
@@ -933,10 +947,6 @@ else:
     market_emoji = "🟡"
     market_comment = "방향성이 뚜렷하지 않아 주요 지표 확인이 필요합니다."
 
-
-# =========================
-# 시장 코멘트 생성
-# =========================
 def build_market_comments():
     comments = []
 
@@ -988,13 +998,8 @@ def build_market_comments():
 
     return comments[:4]
 
-
 market_comments = build_market_comments()
 
-
-# =========================
-# 오늘의 시장 평가 텍스트
-# =========================
 def build_market_briefing():
     top_news = news_df.head(3)["뉴스 제목"].tolist() if not news_df.empty else []
 
@@ -1035,7 +1040,6 @@ def build_market_briefing():
 이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 자동 해석입니다. 매수·매도 지시가 아니라 시장 관찰용 신호입니다.
 """
 
-
 # =========================
 # Header
 # =========================
@@ -1061,16 +1065,16 @@ with header_right:
             margin: 0;
             background: transparent;
             font-family: Arial, sans-serif;
-            color: #f8fafc;
+            color: {TEXT_MAIN};
         }}
 
         .ticker-wrap {{
             width: 100%;
-            min-height: 128px;
-            background: linear-gradient(145deg, rgba(17,24,39,0.96), rgba(8,13,22,0.96));
-            border: 1px solid #26364c;
+            min-height: 126px;
+            background: {TICKER_BG};
+            border: 1px solid {BORDER};
             border-radius: 18px;
-            padding: 12px 15px;
+            padding: 12px 14px;
             box-sizing: border-box;
             overflow: hidden;
         }}
@@ -1079,7 +1083,7 @@ with header_right:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }}
 
         .status-pill {{
@@ -1089,29 +1093,40 @@ with header_right:
             border-radius: 999px;
             background: rgba(34,197,94,0.10);
             border: 1px solid rgba(34,197,94,0.35);
-            color: #86efac;
+            color: #22c55e;
             font-weight: 800;
             font-size: 15px;
         }}
 
         .time {{
             font-size: 12px;
-            color: #94a3b8;
+            color: {TEXT_SUB};
+        }}
+
+        .ticker-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }}
+
+        .ticker-col {{
+            min-width: 0;
         }}
 
         .ticker-title {{
             font-size: 12px;
-            color: #94a3b8;
-            margin-bottom: 5px;
-            font-weight: 700;
+            color: {TEXT_SUB};
+            margin-bottom: 6px;
+            font-weight: 800;
         }}
 
         .ticker-window {{
-            height: 28px;
+            height: 24px;
             overflow: hidden;
             position: relative;
-            border-bottom: 1px solid rgba(38,54,76,0.7);
-            margin-bottom: 8px;
+            border-top: 1px solid {BORDER};
+            padding-top: 6px;
         }}
 
         .ticker-track {{
@@ -1119,10 +1134,10 @@ with header_right:
         }}
 
         .ticker-item {{
-            height: 28px;
-            line-height: 28px;
+            height: 24px;
+            line-height: 24px;
             font-size: 13px;
-            color: #e5e7eb;
+            color: {TEXT_MAIN};
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1131,12 +1146,12 @@ with header_right:
         @keyframes slideTicker {{
             0% {{ transform: translateY(0px); }}
             22% {{ transform: translateY(0px); }}
-            25% {{ transform: translateY(-28px); }}
-            47% {{ transform: translateY(-28px); }}
-            50% {{ transform: translateY(-56px); }}
-            72% {{ transform: translateY(-56px); }}
-            75% {{ transform: translateY(-84px); }}
-            97% {{ transform: translateY(-84px); }}
+            25% {{ transform: translateY(-24px); }}
+            47% {{ transform: translateY(-24px); }}
+            50% {{ transform: translateY(-48px); }}
+            72% {{ transform: translateY(-48px); }}
+            75% {{ transform: translateY(-72px); }}
+            97% {{ transform: translateY(-72px); }}
             100% {{ transform: translateY(0px); }}
         }}
     </style>
@@ -1148,23 +1163,29 @@ with header_right:
                 <div class="time">{get_kst_now().strftime('%H:%M:%S')} KST</div>
             </div>
 
-            <div class="ticker-title">📰 주요 뉴스</div>
-            <div class="ticker-window">
-                <div class="ticker-track">
-                    <div class="ticker-item">{safe_news_items[0]}</div>
-                    <div class="ticker-item">{safe_news_items[1]}</div>
-                    <div class="ticker-item">{safe_news_items[2]}</div>
-                    <div class="ticker-item">{safe_news_items[3]}</div>
+            <div class="ticker-grid">
+                <div class="ticker-col">
+                    <div class="ticker-title">📰 주요 뉴스</div>
+                    <div class="ticker-window">
+                        <div class="ticker-track">
+                            <div class="ticker-item">{safe_news_items[0]}</div>
+                            <div class="ticker-item">{safe_news_items[1]}</div>
+                            <div class="ticker-item">{safe_news_items[2]}</div>
+                            <div class="ticker-item">{safe_news_items[3]}</div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="ticker-title">🧠 시장 코멘트</div>
-            <div class="ticker-window">
-                <div class="ticker-track">
-                    <div class="ticker-item">{safe_market_comments[0]}</div>
-                    <div class="ticker-item">{safe_market_comments[1]}</div>
-                    <div class="ticker-item">{safe_market_comments[2]}</div>
-                    <div class="ticker-item">{safe_market_comments[3]}</div>
+                <div class="ticker-col">
+                    <div class="ticker-title">🧠 시장 코멘트</div>
+                    <div class="ticker-window">
+                        <div class="ticker-track">
+                            <div class="ticker-item">{safe_market_comments[0]}</div>
+                            <div class="ticker-item">{safe_market_comments[1]}</div>
+                            <div class="ticker-item">{safe_market_comments[2]}</div>
+                            <div class="ticker-item">{safe_market_comments[3]}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1172,7 +1193,7 @@ with header_right:
     </html>
     """
 
-    components.html(rolling_html, height=145)
+    components.html(rolling_html, height=130)
 
 if hasattr(st, "dialog"):
     @st.dialog("오늘의 실시간 시장현황")
@@ -1189,7 +1210,6 @@ else:
     if st.session_state.show_market_briefing:
         with st.expander("오늘의 실시간 시장현황", expanded=True):
             st.markdown(build_market_briefing())
-
 
 # =========================
 # Key Metrics
@@ -1220,7 +1240,6 @@ for row_start in range(0, len(top_metric_list), 5):
             safe_metric(label, price, change)
 
 st.markdown("")
-
 
 # =========================
 # Main Layout
@@ -1256,13 +1275,13 @@ with left:
 
         fig.update_layout(
             title=f"{selected_name} ({selected_symbol})",
-            template="plotly_dark",
+            template=TEMPLATE,
             height=360,
             xaxis_rangeslider_visible=False,
             margin=dict(l=12, r=12, t=42, b=12),
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(8,13,22,0.95)",
-            font=dict(color="#e5e7eb")
+            plot_bgcolor=PLOT_BG,
+            font=dict(color=TEXT_MAIN)
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -1321,7 +1340,7 @@ with left:
                             st.info(f"{selected_symbol_for_analysis}는 이미 등록되어 있습니다.")
 
                 with info_col:
-                    st.caption("오른쪽 보유/관심종목 모니터링 패널에서 집중 확인됩니다.")
+                    st.caption("아래 보유/관심종목 모니터링 패널에서 집중 확인됩니다.")
 
                 s1, s2, s3, s4 = st.columns(4)
 
@@ -1367,7 +1386,7 @@ with left:
                     reason_html = ""
                     for reason in reasons:
                         reason_html += f"""
-                        <div style="border-bottom:1px solid #26364c; padding:8px 0;">
+                        <div style="border-bottom:1px solid {BORDER}; padding:8px 0;">
                             • {reason}
                         </div>
                         """
@@ -1413,7 +1432,6 @@ with left:
         else:
             st.warning("검색 결과가 없습니다. 한글명은 등록된 별칭만 지원하며, 영문명 또는 티커 입력이 가장 정확합니다.")
 
-
 with middle:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
 
@@ -1423,19 +1441,19 @@ with middle:
 
     st.markdown(f"""
     <div class="panel">
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding-bottom:12px;">
             <span>종합 판단</span><span class="badge-green">{market_emoji} {market_status}</span>
         </div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding:13px 0;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;">
             <span>변동성 위험</span><span class="badge-yellow">{vol_status} (VIX {vix_price})</span>
         </div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #26364c; padding:13px 0;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;">
             <span>금리 부담</span><span class="badge-yellow">{rate_status} (10Y {tnx_price})</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding-top:13px;">
             <span>반도체 모멘텀</span><span class="badge-green">{semi_status} (SMH {smh_change}%)</span>
         </div>
-        <div style="margin-top:20px; color:#93c5fd; font-size:0.88rem;">{market_comment}</div>
+        <div style="margin-top:20px; color:#38bdf8; font-size:0.88rem;">{market_comment}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1443,12 +1461,11 @@ with middle:
     st.markdown(
         f"""
         <div class="panel">
-            <div style="white-space:pre-line; font-size:0.86rem; color:#cbd5e1;">{economic_memo}</div>
+            <div style="white-space:pre-line; font-size:0.86rem; color:{TEXT_SUB};">{economic_memo}</div>
         </div>
         """,
         unsafe_allow_html=True
     )
-
 
 with right:
     st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
@@ -1483,32 +1500,40 @@ with right:
     else:
         st.info("관심 후보 데이터 없음")
 
-    st.markdown('<div class="panel-title">⭐ 보유/관심종목 모니터링</div>', unsafe_allow_html=True)
+# =========================
+# Full-width Focus Monitor
+# =========================
+st.markdown('<div class="panel-title">⭐ 보유/관심종목 모니터링</div>', unsafe_allow_html=True)
 
-    if st.session_state.focus_symbols:
-        for symbol in list(st.session_state.focus_symbols):
-            data = get_searched_stock_data(symbol)
+if st.session_state.focus_symbols:
+    focus_cols = st.columns(3)
 
+    for idx, symbol in enumerate(list(st.session_state.focus_symbols)):
+        data = get_searched_stock_data(symbol)
+        col = focus_cols[idx % 3]
+
+        with col:
             if data:
                 change = data["change"]
                 change_class = "badge-green" if change >= 0 else "badge-red"
+                volume_ratio_text = f"{data['volume_ratio']}배" if data["volume_ratio"] else "N/A"
 
                 st.markdown(
                     f"""
-                    <div class="panel">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div class="monitor-symbol">{data['name']} ({symbol})</div>
-                                <div class="monitor-sub">{data['sector']} · {data['industry']}</div>
+                    <div class="focus-card">
+                        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                            <div style="min-width:0; flex:1;">
+                                <div class="focus-name">{data['name']} ({symbol})</div>
+                                <div class="focus-sub">{data['sector']} · {data['industry']}</div>
                             </div>
-                            <div style="text-align:right;">
-                                <div style="font-weight:800; font-size:1.1rem;">{data['price']}</div>
+                            <div style="min-width:90px; text-align:right;">
+                                <div class="focus-price">{data['price']}</div>
                                 <div class="{change_class}">{data['change']}%</div>
                             </div>
                         </div>
-                        <div style="margin-top:10px; display:flex; justify-content:space-between; color:#cbd5e1; font-size:0.82rem;">
-                            <span>거래량 {data['volume']:,}</span>
-                            <span>평균대비 {data['volume_ratio'] if data['volume_ratio'] else 'N/A'}배</span>
+                        <div style="margin-top:13px; display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                            <div class="focus-stat">거래량<br><b>{data['volume']:,}</b></div>
+                            <div class="focus-stat" style="text-align:right;">평균대비<br><b>{volume_ratio_text}</b></div>
                         </div>
                     </div>
                     """,
@@ -1520,9 +1545,8 @@ with right:
                     st.rerun()
             else:
                 st.warning(f"{symbol} 데이터를 불러오지 못했습니다.")
-    else:
-        st.info("종목 검색 분석에서 보유/관심종목을 추가하세요.")
-
+else:
+    st.info("종목 검색 분석에서 보유/관심종목을 추가하세요.")
 
 # =========================
 # Market Table
