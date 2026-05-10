@@ -40,9 +40,18 @@ def get_kst_now() -> datetime:
 
 
 # =========================================================
-# Top settings panel: stable expander, not CSS fake button
+# Top settings panel: stable checkbox panel, not expander
 # =========================================================
-with st.expander("⚙️ 설정 옵션 열기 / 닫기", expanded=False):
+settings_open = st.checkbox(
+    "⚙️ 설정 옵션 열기 / 닫기",
+    value=st.session_state.get("settings_open", False),
+    key="settings_open",
+)
+
+custom_symbol = ""
+
+if settings_open:
+    st.markdown("<div class='panel-title'>⚙️ 대시보드 설정</div>", unsafe_allow_html=True)
     s1, s2, s3, s4, s5 = st.columns([1.05, 1.0, 0.9, 1.0, 1.0])
 
     with s1:
@@ -170,9 +179,8 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 .focus-stat {{ color: {TEXT_SUB}; font-size: 0.66rem; }}
 .focus-delete button {{ height: 28px !important; min-height: 28px !important; padding: 2px 6px !important; font-size: 0.70rem !important; }}
 
-/* top settings expander visibility */
-[data-testid="stExpander"] {{ border: 1px solid {BORDER} !important; border-radius: 14px !important; background: {PANEL_BG} !important; }}
-[data-testid="stExpander"] summary p {{ font-weight: 850 !important; color: {TEXT_MAIN} !important; }}
+/* top settings checkbox visibility */
+label[data-testid="stWidgetLabel"] p { font-weight: 850 !important; color: {TEXT_MAIN} !important; }
 </style>
 """,
     unsafe_allow_html=True,
