@@ -180,7 +180,7 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 .focus-delete button {{ height: 28px !important; min-height: 28px !important; padding: 2px 6px !important; font-size: 0.70rem !important; }}
 
 /* top settings checkbox visibility */
-label[data-testid="stWidgetLabel"] p { font-weight: 850 !important; color: {TEXT_MAIN} !important; }
+label[data-testid="stWidgetLabel"] p {{ font-weight: 850 !important; color: {TEXT_MAIN} !important; }}
 </style>
 """,
     unsafe_allow_html=True,
