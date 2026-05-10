@@ -303,6 +303,36 @@ button {{
 footer {{
     visibility: hidden;
 }}
+/* ⚙️ 설정 버튼 스타일 */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: 75px !important;
+    left: 12px !important;
+    z-index: 999999 !important;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 50% !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 1px solid #38bdf8 !important;
+    box-shadow: 0 0 18px rgba(56,189,248,0.45) !important;
+}
+
+[data-testid="collapsedControl"] svg {
+    display: none !important;
+}
+
+[data-testid="collapsedControl"]::before {
+    content: "⚙️";
+    font-size: 22px;
+    line-height: 42px;
+    width: 42px;
+    height: 42px;
+    text-align: center;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
