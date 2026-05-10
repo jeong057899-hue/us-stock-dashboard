@@ -40,73 +40,10 @@ def get_kst_now() -> datetime:
 
 
 # =========================================================
-# Top settings panel: stable checkbox panel, not expander
+# Settings are rendered directly in the header area.
+# No hidden sidebar / expander is used.
 # =========================================================
-settings_open = st.checkbox(
-    "⚙️ 설정 옵션 열기 / 닫기",
-    value=st.session_state.get("settings_open", False),
-    key="settings_open",
-)
-
-custom_symbol = ""
-
-if settings_open:
-    st.markdown("<div class='panel-title'>⚙️ 대시보드 설정</div>", unsafe_allow_html=True)
-    s1, s2, s3, s4, s5 = st.columns([1.05, 1.0, 0.9, 1.0, 1.0])
-
-    with s1:
-        st.session_state.theme_mode = st.selectbox(
-            "화면 테마",
-            ["다크 모드", "라이트 모드"],
-            index=["다크 모드", "라이트 모드"].index(st.session_state.theme_mode),
-        )
-
-    with s2:
-        st.session_state.auto_refresh = st.checkbox(
-            "자동 갱신",
-            value=st.session_state.auto_refresh,
-        )
-
-    with s3:
-        refresh_options = [15, 30, 60, 120, 300]
-        st.session_state.refresh_seconds = st.selectbox(
-            "갱신 주기",
-            refresh_options,
-            index=refresh_options.index(st.session_state.refresh_seconds),
-        )
-
-    with s4:
-        chart_period_options = ["1d", "5d", "1mo", "3mo", "6mo", "1y"]
-        st.session_state.chart_period = st.selectbox(
-            "차트 기간",
-            chart_period_options,
-            index=chart_period_options.index(st.session_state.chart_period),
-        )
-
-    with s5:
-        chart_interval_options = ["1m", "5m", "15m", "30m", "1h", "1d"]
-        st.session_state.chart_interval = st.selectbox(
-            "차트 간격",
-            chart_interval_options,
-            index=chart_interval_options.index(st.session_state.chart_interval),
-        )
-
-    q1, q2 = st.columns([1, 3])
-    with q1:
-        custom_symbol = st.text_input("빠른 티커 추가", placeholder="예: NVDA, QQQ, SOXL").upper().strip()
-    with q2:
-        st.session_state.economic_memo = st.text_area(
-            "경제 이벤트 메모",
-            value=st.session_state.economic_memo,
-            height=90,
-        )
-
-    if st.button("🔄 수동 새로고침", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-if st.session_state.auto_refresh:
-    st_autorefresh(interval=st.session_state.refresh_seconds * 1000, key="auto_refresh")
+custom_symbol = st.session_state.get("custom_symbol", "")
 
 # =========================================================
 # Theme variables
@@ -566,12 +503,72 @@ def build_market_comments():
 market_comments = build_market_comments()
 
 # =========================================================
-# Header and ticker
+# Header: title + visible settings + ticker
 # =========================================================
-header_left, header_right = st.columns([2.25, 1.35])
+header_left, header_settings, header_right = st.columns([1.22, 1.30, 1.35])
 with header_left:
     st.title("📈 나스닥 시황 모니터링 대시보드")
     st.caption("나스닥100 · 성장주 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 시장 판단 시스템")
+
+with header_settings:
+    st.markdown('<div class="settings-card">', unsafe_allow_html=True)
+    st.markdown('<div class="settings-title">⚙️ 대시보드 설정</div>', unsafe_allow_html=True)
+    hs1, hs2, hs3 = st.columns([0.86, 0.72, 0.72])
+    with hs1:
+        st.session_state.theme_mode = st.selectbox(
+            "테마",
+            ["다크 모드", "라이트 모드"],
+            index=["다크 모드", "라이트 모드"].index(st.session_state.theme_mode),
+            key="theme_mode_header",
+        )
+    with hs2:
+        st.session_state.auto_refresh = st.checkbox(
+            "자동 갱신",
+            value=st.session_state.auto_refresh,
+            key="auto_refresh_header",
+        )
+    with hs3:
+        refresh_options = [5, 15, 30, 45, 60]
+        current_refresh = st.session_state.refresh_seconds if st.session_state.refresh_seconds in refresh_options else 30
+        st.session_state.refresh_seconds = st.selectbox(
+            "주기(초)",
+            refresh_options,
+            index=refresh_options.index(current_refresh),
+            key="refresh_seconds_header",
+        )
+
+    hs4, hs5, hs6 = st.columns([0.72, 0.72, 0.95])
+    with hs4:
+        chart_period_options = ["1d", "5d", "1mo", "3mo", "6mo", "1y"]
+        st.session_state.chart_period = st.selectbox(
+            "차트기간",
+            chart_period_options,
+            index=chart_period_options.index(st.session_state.chart_period),
+            key="chart_period_header",
+        )
+    with hs5:
+        chart_interval_options = ["1m", "5m", "15m", "30m", "1h", "1d"]
+        st.session_state.chart_interval = st.selectbox(
+            "간격",
+            chart_interval_options,
+            index=chart_interval_options.index(st.session_state.chart_interval),
+            key="chart_interval_header",
+        )
+    with hs6:
+        st.session_state.custom_symbol = st.text_input(
+            "빠른티커",
+            value=st.session_state.get("custom_symbol", ""),
+            placeholder="NVDA",
+            key="custom_symbol_header",
+        ).upper().strip()
+    if st.button("🔄 수동 새로고침", key="manual_refresh_header", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if st.session_state.auto_refresh:
+    st_autorefresh(interval=st.session_state.refresh_seconds * 1000, key="auto_refresh")
+
 with header_right:
     news_items = news_df.head(4)["뉴스 제목"].tolist() if not news_df.empty else ["뉴스 데이터를 불러오는 중입니다."]
     while len(news_items) < 4:
