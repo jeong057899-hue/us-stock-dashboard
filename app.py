@@ -19,7 +19,7 @@ st.set_page_config(
 # =========================
 # Sidebar - Theme First
 # =========================
-st.sidebar.title("⚙️ 설정")
+st.sidebar.markdown("## ⚙️ 설정")
 
 theme_mode = st.sidebar.selectbox(
     "화면 테마",
