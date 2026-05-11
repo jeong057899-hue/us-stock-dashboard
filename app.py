@@ -126,7 +126,8 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 [data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] {{ background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }}
 [data-testid="stDataFrame"] [role="columnheader"] {{ font-weight: 800 !important; }}
 
-.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); min-height: 500px; }}
+.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 14px; padding: 6px; margin-bottom: 8px; box-shadow: 0 8px 18px rgba(0,0,0,0.16); min-height: 0; }}
+.tv-caption {{ font-size: 0.72rem; color: {TEXT_SUB}; margin: 2px 0 4px 2px; line-height: 1.2; }}
 .tv-caption {{ color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }}
 
 /* top settings checkbox visibility */
@@ -388,32 +389,48 @@ def tradingview_interval(interval: str) -> str:
 
 
 def render_tradingview_widget(symbol: str, theme_mode: str, interval: str = "5m", height: int = 430):
+    """Render a fixed-height TradingView chart.
+
+    The official script widget sometimes renders a large blank area inside
+    Streamlit iframes when several widgets are placed on the same page.
+    A direct TradingView widget iframe is more stable for 2x2 monitoring.
+    """
+    from urllib.parse import quote
+
     tv_symbol = tradingview_symbol(symbol)
     tv_theme = "light" if theme_mode == "라이트 모드" else "dark"
     tv_interval = tradingview_interval(interval)
+    encoded_symbol = quote(tv_symbol, safe="")
+
+    src = (
+        "https://s.tradingview.com/widgetembed/?"
+        f"symbol={encoded_symbol}"
+        f"&interval={tv_interval}"
+        "&timezone=Asia%2FSeoul"
+        f"&theme={tv_theme}"
+        "&style=1"
+        "&locale=kr"
+        "&withdateranges=1"
+        "&hide_side_toolbar=0"
+        "&allow_symbol_change=0"
+        "&saveimage=0"
+        "&studies=%5B%5D"
+        "&hideideas=1"
+        "&calendar=0"
+    )
 
     widget = f"""
-    <div class="tradingview-widget-container" style="height:{height}px;width:100%;">
-      <div class="tradingview-widget-container__widget" style="height:{height}px;width:100%;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-      {{
-        "autosize": true,
-        "symbol": "{tv_symbol}",
-        "interval": "{tv_interval}",
-        "timezone": "Asia/Seoul",
-        "theme": "{tv_theme}",
-        "style": "1",
-        "locale": "kr",
-        "enable_publishing": false,
-        "allow_symbol_change": false,
-        "hide_side_toolbar": false,
-        "calendar": false,
-        "support_host": "https://www.tradingview.com"
-      }}
-      </script>
+    <div style="height:{height}px; width:100%; overflow:hidden; border-radius:10px; background:#0b1220;">
+        <iframe
+            src="{src}"
+            style="width:100%; height:{height}px; border:0; margin:0; padding:0; display:block;"
+            allowtransparency="true"
+            scrolling="no"
+            frameborder="0">
+        </iframe>
     </div>
     """
-    components.html(widget, height=height + 8, scrolling=False)
+    components.html(widget, height=height, scrolling=False)
 
 def styled_df(dataframe: pd.DataFrame, color_subset=None):
     styler = dataframe.style.set_properties(**{"background-color": INPUT_BG, "color": TEXT_MAIN, "border-color": BORDER})
@@ -853,7 +870,7 @@ for chart_idx in range(4):
             selected_symbol,
             st.session_state.theme_mode,
             interval=st.session_state.chart_interval,
-            height=490,
+            height=420,
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
