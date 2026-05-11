@@ -375,35 +375,45 @@ def tradingview_symbol(symbol: str) -> str:
     return f"NASDAQ:{clean}"
 
 
-def render_tradingview_widget(symbol: str, theme_mode: str, height: int = 430):
+def tradingview_interval(interval: str) -> str:
+    mapping = {
+        "1m": "1",
+        "5m": "5",
+        "15m": "15",
+        "30m": "30",
+        "1h": "60",
+        "1d": "D",
+    }
+    return mapping.get(interval, "5")
+
+
+def render_tradingview_widget(symbol: str, theme_mode: str, interval: str = "5m", height: int = 430):
     tv_symbol = tradingview_symbol(symbol)
     tv_theme = "light" if theme_mode == "라이트 모드" else "dark"
-    widget = f'''
+    tv_interval = tradingview_interval(interval)
+
+    widget = f"""
     <div class="tradingview-widget-container" style="height:{height}px;width:100%;">
-      <div id="tradingview_chart" style="height:{height}px;width:100%;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget({{
+      <div class="tradingview-widget-container__widget" style="height:{height}px;width:100%;"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+      {{
         "autosize": true,
         "symbol": "{tv_symbol}",
-        "interval": "5",
+        "interval": "{tv_interval}",
         "timezone": "Asia/Seoul",
         "theme": "{tv_theme}",
         "style": "1",
         "locale": "kr",
         "enable_publishing": false,
-        "hide_top_toolbar": false,
-        "hide_legend": false,
-        "allow_symbol_change": true,
-        "save_image": false,
-        "studies": ["Volume@tv-basicstudies", "MASimple@tv-basicstudies"],
-        "container_id": "tradingview_chart"
-      }});
+        "allow_symbol_change": false,
+        "hide_side_toolbar": false,
+        "calendar": false,
+        "support_host": "https://www.tradingview.com"
+      }}
       </script>
     </div>
-    '''
+    """
     components.html(widget, height=height + 8, scrolling=False)
-
 
 def styled_df(dataframe: pd.DataFrame, color_subset=None):
     styler = dataframe.style.set_properties(**{"background-color": INPUT_BG, "color": TEXT_MAIN, "border-color": BORDER})
@@ -811,18 +821,45 @@ for row_start in range(0, len(top_metric_list), 5):
             safe_metric(label, price, change)
 
 # =========================================================
-# Chart + market judgment + alerts
+# 4-way TradingView chart monitor + market judgment + alerts
 # =========================================================
-left, middle, right = st.columns([2.15, 0.9, 0.95])
-with left:
-    st.markdown('<div class="panel-title">📊 실시간 차트</div>', unsafe_allow_html=True)
-    selected_name = st.selectbox("차트 종목", list(tickers.keys()), index=0, label_visibility="collapsed")
-    selected_symbol = tickers[selected_name]
-    st.markdown(f"<div class='tv-caption'>TradingView 실시간 차트 · {selected_name} ({selected_symbol})</div>", unsafe_allow_html=True)
-    st.markdown('<div class="tv-card">', unsafe_allow_html=True)
-    render_tradingview_widget(selected_symbol, st.session_state.theme_mode, height=430)
-    st.markdown('</div>', unsafe_allow_html=True)
-with middle:
+st.markdown('<div class="panel-title">📊 실시간 차트 4분할 모니터링</div>', unsafe_allow_html=True)
+
+chart_names = list(tickers.keys())
+chart_defaults = ["나스닥 선물", "NASDAQ100 ETF", "비트코인", "반도체 ETF"]
+chart_grid_rows = [st.columns(2), st.columns(2)]
+
+for chart_idx in range(4):
+    row = chart_idx // 2
+    col = chart_idx % 2
+    with chart_grid_rows[row][col]:
+        default_name = chart_defaults[chart_idx]
+        default_idx = chart_names.index(default_name) if default_name in chart_names else 0
+        selected_name = st.selectbox(
+            f"차트 {chart_idx + 1}",
+            chart_names,
+            index=default_idx,
+            key=f"tv_chart_select_{chart_idx}",
+            label_visibility="collapsed",
+        )
+        selected_symbol = tickers[selected_name]
+        tv_symbol_for_caption = tradingview_symbol(selected_symbol)
+        st.markdown(
+            f"<div class='tv-caption'>TradingView 실시간 차트 · {selected_name} ({selected_symbol}) · {tv_symbol_for_caption} · 한국시간(KST)</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="tv-card">', unsafe_allow_html=True)
+        render_tradingview_widget(
+            selected_symbol,
+            st.session_state.theme_mode,
+            interval=st.session_state.chart_interval,
+            height=315,
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+info_left, info_middle, info_right = st.columns([1.0, 1.0, 1.0])
+
+with info_left:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
     vol_status = "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음"
     rate_status = "높음" if tnx_change and tnx_change > 1 else "보통"
@@ -834,18 +871,22 @@ with middle:
     <div style="display:flex; justify-content:space-between; padding-top:13px;"><span>반도체 모멘텀</span><span class="badge-green">{semi_status} (SMH {smh_change}%)</span></div>
     <div style="margin-top:20px; color:#38bdf8; font-size:0.88rem;">{market_comment}</div></div>
     """, unsafe_allow_html=True)
+
+with info_middle:
     st.markdown('<div class="panel-title">📅 경제 이벤트 체크</div>', unsafe_allow_html=True)
     st.markdown(f"<div class='panel'><div style='white-space:pre-line; font-size:0.86rem; color:{TEXT_SUB};'>{st.session_state.economic_memo}</div></div>", unsafe_allow_html=True)
-with right:
+
+with info_right:
     st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
     alert_df = df[(df["변동률(%)"].notna()) & ((df["변동률(%)"].abs() >= 3) | (df["평균거래량대비"].fillna(0) >= 1.8))][["이름", "티커", "변동률(%)", "평균거래량대비"]]
     if not alert_df.empty:
-        st.dataframe(styled_df(alert_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=235)
+        st.dataframe(styled_df(alert_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=205)
     else:
         st.success("급등락/거래량 이상 신호 없음")
+
     st.markdown('<div class="panel-title">🎯 현재 관심 후보</div>', unsafe_allow_html=True)
     if not candidate_df.empty:
-        st.dataframe(styled_df(candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]]), use_container_width=True, hide_index=True, height=235)
+        st.dataframe(candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]], use_container_width=True, hide_index=True, height=205)
     else:
         st.info("관심 후보 데이터 없음")
 
