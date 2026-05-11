@@ -30,6 +30,7 @@ DEFAULTS = {
     "chart_interval": "5m",
     "focus_symbols": [],
     "economic_memo": "CPI 발표 확인\nPPI 발표 확인\nFOMC 일정 확인\nPCE 물가 확인\n고용보고서 확인\n연준 인사 발언 확인",
+    "chart_queries": ["나스닥 선물", "QQQ", "비트코인", "SMH"],
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -176,6 +177,126 @@ korean_alias = {
 def normalize_search_query(query: str) -> str:
     key = query.strip().lower()
     return korean_alias.get(key, query.strip())
+
+
+KNOWN_TV_SYMBOLS = {
+    "나스닥선물": "CME_MINI:NQ1!",
+    "나스닥 선물": "CME_MINI:NQ1!",
+    "NQ": "CME_MINI:NQ1!",
+    "NQ1!": "CME_MINI:NQ1!",
+    "S&P선물": "CME_MINI:ES1!",
+    "S&P 선물": "CME_MINI:ES1!",
+    "ES": "CME_MINI:ES1!",
+    "ES1!": "CME_MINI:ES1!",
+    "비트코인": "BINANCE:BTCUSDT",
+    "BTC": "BINANCE:BTCUSDT",
+    "BTC-USD": "BINANCE:BTCUSDT",
+    "BTCUSDT": "BINANCE:BTCUSDT",
+    "금": "COMEX:GC1!",
+    "GOLD": "COMEX:GC1!",
+    "원유": "NYMEX:CL1!",
+    "WTI": "NYMEX:CL1!",
+    "VIX": "TVC:VIX",
+    "DXY": "TVC:DXY",
+    "US10Y": "TVC:US10Y",
+    "QQQ": "NASDAQ:QQQ",
+    "TQQQ": "NASDAQ:TQQQ",
+    "SOXL": "AMEX:SOXL",
+    "SMH": "NASDAQ:SMH",
+    "SPY": "AMEX:SPY",
+}
+
+KNOWN_EXCHANGE_OVERRIDES = {
+    "PLTR": "NYSE", "IONQ": "NYSE", "UBER": "NYSE", "SHOP": "NYSE",
+    "SNOW": "NYSE", "CRM": "NYSE", "ORCL": "NYSE", "DELL": "NYSE",
+    "TSM": "NYSE", "BABA": "NYSE", "NIO": "NYSE", "RBLX": "NYSE",
+    "COIN": "NASDAQ", "MSTR": "NASDAQ", "RKLB": "NASDAQ", "SLDP": "NASDAQ",
+    "NVDA": "NASDAQ", "TSLA": "NASDAQ", "AAPL": "NASDAQ", "MSFT": "NASDAQ",
+    "AMZN": "NASDAQ", "META": "NASDAQ", "GOOGL": "NASDAQ", "AMD": "NASDAQ",
+    "AVGO": "NASDAQ", "ARM": "NASDAQ", "SMCI": "NASDAQ", "MU": "NASDAQ",
+}
+
+
+@st.cache_data(ttl=3600)
+def load_ticker_database() -> pd.DataFrame:
+    """Load the reviewed ETF/stock ticker database when it exists next to app.py.
+
+    Deployment note: place combined_app_ready_tickers.csv in the same GitHub
+    repository as app.py. If the file is missing, the app still works with
+    built-in aliases and Yahoo search fallback.
+    """
+    candidates = [
+        "combined_app_ready_tickers.csv",
+        "ticker_review_outputs/combined_app_ready_tickers.csv",
+        "/mnt/data/ticker_review_outputs/combined_app_ready_tickers.csv",
+    ]
+    for path in candidates:
+        try:
+            df_db = pd.read_csv(path)
+            needed = {"symbol", "name", "yfinance_symbol", "tradingview_symbol", "asset_type"}
+            if needed.issubset(set(df_db.columns)):
+                df_db = df_db[df_db.get("app_include", True).fillna(True)].copy()
+                for col in ["symbol", "name", "yfinance_symbol", "tradingview_symbol", "asset_type"]:
+                    df_db[col] = df_db[col].fillna("").astype(str)
+                df_db["search_blob"] = (
+                    df_db["symbol"] + " " + df_db["name"] + " " + df_db["asset_type"]
+                ).str.lower()
+                return df_db
+        except Exception:
+            continue
+    return pd.DataFrame(columns=["symbol", "name", "yfinance_symbol", "tradingview_symbol", "asset_type", "search_blob"])
+
+
+def normalize_symbol_for_yfinance(symbol: str) -> str:
+    return str(symbol).strip().upper().replace("/", "-")
+
+
+def search_local_tickers(query: str, limit: int = 12) -> list[dict]:
+    q = str(query).strip()
+    if not q:
+        return []
+    normalized = normalize_search_query(q)
+    q_upper = normalized.upper()
+    q_lower = normalized.lower()
+    db = load_ticker_database()
+    results = []
+    if not db.empty:
+        exact = db[db["symbol"].str.upper().eq(q_upper)]
+        contains = db[db["search_blob"].str.contains(re.escape(q_lower), na=False, regex=True)]
+        merged = pd.concat([exact, contains], ignore_index=True).drop_duplicates(subset=["symbol", "asset_type"]).head(limit)
+        for _, row in merged.iterrows():
+            results.append({
+                "symbol": row["yfinance_symbol"] or row["symbol"],
+                "name": row["name"] or row["symbol"],
+                "exchange": str(row.get("tradingview_symbol", "")).split(":")[0] if ":" in str(row.get("tradingview_symbol", "")) else "AUTO",
+                "type": row["asset_type"] or "UNKNOWN",
+                "tradingview_symbol": row.get("tradingview_symbol", ""),
+            })
+    return results[:limit]
+
+
+def resolve_chart_query(query: str) -> dict:
+    """Resolve Korean name/ticker/free text to yfinance + TradingView symbols."""
+    raw = str(query).strip()
+    if not raw:
+        raw = "나스닥 선물"
+    alias_value = korean_alias.get(raw.lower(), raw)
+    alias_upper = str(alias_value).upper()
+    if raw in KNOWN_TV_SYMBOLS:
+        return {"label": raw, "yfinance": raw, "tradingview": KNOWN_TV_SYMBOLS[raw]}
+    if alias_upper in KNOWN_TV_SYMBOLS:
+        return {"label": raw, "yfinance": alias_upper, "tradingview": KNOWN_TV_SYMBOLS[alias_upper]}
+    if ":" in raw:
+        base = raw.split(":", 1)[1].replace(".", "-")
+        return {"label": raw, "yfinance": normalize_symbol_for_yfinance(base), "tradingview": raw.upper()}
+    local = search_local_tickers(alias_value, limit=1)
+    if local:
+        item = local[0]
+        tv = item.get("tradingview_symbol") or tradingview_symbol(item["symbol"])
+        return {"label": item.get("name") or raw, "yfinance": item["symbol"], "tradingview": tv}
+    yf_symbol = normalize_symbol_for_yfinance(alias_value)
+    exchange = KNOWN_EXCHANGE_OVERRIDES.get(yf_symbol, "NASDAQ")
+    return {"label": raw, "yfinance": yf_symbol, "tradingview": f"{exchange}:{yf_symbol.replace('-', '.')}"}
 
 market_assets = {
     "NASDAQ100 ETF": "QQQ",
@@ -359,6 +480,16 @@ def get_saveticker_news() -> pd.DataFrame:
 
 
 def tradingview_symbol(symbol: str) -> str:
+    raw = str(symbol).strip()
+    if not raw:
+        return "CME_MINI:NQ1!"
+    if ":" in raw:
+        return raw.upper()
+    if raw in KNOWN_TV_SYMBOLS:
+        return KNOWN_TV_SYMBOLS[raw]
+    upper = raw.upper()
+    if upper in KNOWN_TV_SYMBOLS:
+        return KNOWN_TV_SYMBOLS[upper]
     mapping = {
         "QQQ": "NASDAQ:QQQ", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX",
         "NQ=F": "CME_MINI:NQ1!", "ES=F": "CME_MINI:ES1!", "^VIX": "TVC:VIX",
@@ -366,15 +497,18 @@ def tradingview_symbol(symbol: str) -> str:
         "CL=F": "NYMEX:CL1!", "BTC-USD": "BINANCE:BTCUSDT", "SMH": "NASDAQ:SMH",
         "^SOX": "NASDAQ:SOX", "SPY": "AMEX:SPY", "TQQQ": "NASDAQ:TQQQ", "SOXL": "AMEX:SOXL",
     }
-    if symbol in mapping:
-        return mapping[symbol]
-    clean = symbol.replace("-USD", "USDT")
+    if upper in mapping:
+        return mapping[upper]
+    local = search_local_tickers(upper, limit=1)
+    if local and local[0].get("tradingview_symbol"):
+        return local[0]["tradingview_symbol"]
+    clean = upper.replace("-USD", "USDT")
     if clean.endswith("USDT"):
         return f"BINANCE:{clean}"
     if clean.startswith("^"):
         return clean.replace("^", "NASDAQ:")
-    return f"NASDAQ:{clean}"
-
+    exchange = KNOWN_EXCHANGE_OVERRIDES.get(clean, "NASDAQ")
+    return f"{exchange}:{clean.replace('-', '.')}"
 
 def tradingview_interval(interval: str) -> str:
     mapping = {
@@ -444,6 +578,9 @@ def search_yahoo_symbols(query: str) -> list:
     if not query:
         return []
     normalized = normalize_search_query(query)
+    local_results = search_local_tickers(normalized, limit=10)
+    if local_results:
+        return local_results
     try:
         r = requests.get(
             "https://query1.finance.yahoo.com/v1/finance/search",
@@ -842,32 +979,34 @@ for row_start in range(0, len(top_metric_list), 5):
 # =========================================================
 st.markdown('<div class="panel-title">📊 실시간 차트 4분할 모니터링</div>', unsafe_allow_html=True)
 
-chart_names = list(tickers.keys())
-chart_defaults = ["나스닥 선물", "NASDAQ100 ETF", "비트코인", "반도체 ETF"]
+chart_defaults = ["나스닥 선물", "QQQ", "비트코인", "SMH"]
+if "chart_queries" not in st.session_state or len(st.session_state.chart_queries) != 4:
+    st.session_state.chart_queries = chart_defaults.copy()
 chart_rows = [st.columns(2), st.columns(2)]
 
 for chart_idx in range(4):
     row = chart_idx // 2
     col = chart_idx % 2
     with chart_rows[row][col]:
-        default_name = chart_defaults[chart_idx]
-        default_idx = chart_names.index(default_name) if default_name in chart_names else 0
-        selected_name = st.selectbox(
-            f"차트 {chart_idx + 1}",
-            chart_names,
-            index=default_idx,
-            key=f"tv_chart_select_{chart_idx}",
+        current_query = st.session_state.chart_queries[chart_idx]
+        query = st.text_input(
+            f"차트 {chart_idx + 1} 검색",
+            value=current_query,
+            key=f"tv_chart_query_{chart_idx}",
+            placeholder="예: 나스닥 선물, NVDA, 테슬라, PLTR, BTCUSDT",
             label_visibility="collapsed",
         )
-        selected_symbol = tickers[selected_name]
-        tv_symbol_for_caption = tradingview_symbol(selected_symbol)
+        st.session_state.chart_queries[chart_idx] = query
+        resolved = resolve_chart_query(query)
+        tv_symbol_for_caption = resolved["tradingview"]
+        yf_symbol_for_caption = resolved["yfinance"]
         st.markdown(
-            f"<div class='tv-caption'>TradingView 실시간 차트 · {selected_name} ({selected_symbol}) · {tv_symbol_for_caption} · 한국시간(KST)</div>",
+            f"<div class='tv-caption'>TradingView 실시간 차트 · {html.escape(str(resolved['label']))} · {html.escape(str(tv_symbol_for_caption))} · 한국시간(KST)</div>",
             unsafe_allow_html=True,
         )
         st.markdown('<div class="tv-card">', unsafe_allow_html=True)
         render_tradingview_widget(
-            selected_symbol,
+            tv_symbol_for_caption,
             st.session_state.theme_mode,
             interval=st.session_state.chart_interval,
             height=420,
