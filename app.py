@@ -118,16 +118,16 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 .focus-delete button {{ height: 28px !important; min-height: 28px !important; padding: 2px 6px !important; font-size: 0.70rem !important; }}
 
 
-.settings-card { background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 16px; padding: 10px 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
-.settings-title { font-weight: 900; font-size: 0.86rem; color: {TEXT_MAIN}; margin-bottom: 6px; }
+.settings-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 16px; padding: 10px 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }}
+.settings-title {{ font-weight: 900; font-size: 0.86rem; color: {TEXT_MAIN}; margin-bottom: 6px; }}
 
 /* Dark mode hardening for Streamlit native widgets */
-[data-testid="stDataFrame"] div, [data-testid="stTable"] div { color: {TEXT_MAIN}; }
-[data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] { background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }
-[data-testid="stDataFrame"] [role="columnheader"] { font-weight: 800 !important; }
+[data-testid="stDataFrame"] div, [data-testid="stTable"] div {{ color: {TEXT_MAIN}; }}
+[data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] {{ background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }}
+[data-testid="stDataFrame"] [role="columnheader"] {{ font-weight: 800 !important; }}
 
-.tv-card { background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 13px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
-.tv-caption { color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }
+.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 13px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }}
+.tv-caption {{ color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }}
 
 /* top settings checkbox visibility */
 label[data-testid="stWidgetLabel"] p {{ font-weight: 850 !important; color: {TEXT_MAIN} !important; }}
@@ -235,6 +235,15 @@ def get_price_data(ticker_dict: dict) -> pd.DataFrame:
                     "변동률(%)": round(float(change_pct), 2),
                     "거래량": int(volume) if not pd.isna(volume) else 0,
                     "평균거래량대비": round(float(volume_ratio), 2) if volume_ratio is not None else None,
+                })
+            else:
+                rows.append({
+                    "이름": name,
+                    "티커": symbol,
+                    "현재가": None,
+                    "변동률(%)": None,
+                    "거래량": None,
+                    "평균거래량대비": None,
                 })
         except Exception:
             rows.append({"이름": name, "티커": symbol, "현재가": None, "변동률(%)": None, "거래량": None, "평균거래량대비": None})
