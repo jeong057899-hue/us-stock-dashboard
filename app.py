@@ -126,7 +126,7 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 [data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] {{ background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }}
 [data-testid="stDataFrame"] [role="columnheader"] {{ font-weight: 800 !important; }}
 
-.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 13px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }}
+.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); min-height: 500px; }}
 .tv-caption {{ color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }}
 
 /* top settings checkbox visibility */
@@ -827,12 +827,12 @@ st.markdown('<div class="panel-title">📊 실시간 차트 4분할 모니터링
 
 chart_names = list(tickers.keys())
 chart_defaults = ["나스닥 선물", "NASDAQ100 ETF", "비트코인", "반도체 ETF"]
-chart_grid_rows = [st.columns(2), st.columns(2)]
+chart_rows = [st.columns(2), st.columns(2)]
 
 for chart_idx in range(4):
     row = chart_idx // 2
     col = chart_idx % 2
-    with chart_grid_rows[row][col]:
+    with chart_rows[row][col]:
         default_name = chart_defaults[chart_idx]
         default_idx = chart_names.index(default_name) if default_name in chart_names else 0
         selected_name = st.selectbox(
@@ -853,42 +853,73 @@ for chart_idx in range(4):
             selected_symbol,
             st.session_state.theme_mode,
             interval=st.session_state.chart_interval,
-            height=315,
+            height=490,
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-info_left, info_middle, info_right = st.columns([1.0, 1.0, 1.0])
+# =========================================================
+# Four horizontal information partitions
+# =========================================================
+info_col1, info_col2, info_col3, info_col4 = st.columns(4)
 
-with info_left:
+vol_status = "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음"
+rate_status = "높음" if tnx_change and tnx_change > 1 else "보통"
+semi_status = "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통"
+
+with info_col1:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
-    vol_status = "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음"
-    rate_status = "높음" if tnx_change and tnx_change > 1 else "보통"
-    semi_status = "강함" if smh_change and smh_change > 1 else "약함" if smh_change and smh_change < -1 else "보통"
     st.markdown(f"""
-    <div class="panel"><div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding-bottom:12px;"><span>종합 판단</span><span class="badge-green">{market_emoji} {market_status}</span></div>
-    <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;"><span>변동성 위험</span><span class="badge-yellow">{vol_status} (VIX {vix_price})</span></div>
-    <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;"><span>금리 부담</span><span class="badge-yellow">{rate_status} (10Y {tnx_price})</span></div>
-    <div style="display:flex; justify-content:space-between; padding-top:13px;"><span>반도체 모멘텀</span><span class="badge-green">{semi_status} (SMH {smh_change}%)</span></div>
-    <div style="margin-top:20px; color:#38bdf8; font-size:0.88rem;">{market_comment}</div></div>
+    <div class="panel" style="min-height:255px;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding-bottom:12px;">
+            <span>종합 판단</span><span class="badge-green">{market_emoji} {market_status}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;">
+            <span>변동성 위험</span><span class="badge-yellow">{vol_status} (VIX {vix_price})</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid {BORDER}; padding:13px 0;">
+            <span>금리 부담</span><span class="badge-yellow">{rate_status} (10Y {tnx_price})</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding-top:13px;">
+            <span>반도체 모멘텀</span><span class="badge-green">{semi_status} (SMH {smh_change}%)</span>
+        </div>
+        <div style="margin-top:18px; color:#38bdf8; font-size:0.84rem; line-height:1.45;">{market_comment}</div>
+    </div>
     """, unsafe_allow_html=True)
 
-with info_middle:
+with info_col2:
     st.markdown('<div class="panel-title">📅 경제 이벤트 체크</div>', unsafe_allow_html=True)
-    st.markdown(f"<div class='panel'><div style='white-space:pre-line; font-size:0.86rem; color:{TEXT_SUB};'>{st.session_state.economic_memo}</div></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='panel' style='min-height:255px;'><div style='white-space:pre-line; font-size:0.84rem; color:{TEXT_SUB}; line-height:1.55;'>{st.session_state.economic_memo}</div></div>",
+        unsafe_allow_html=True,
+    )
 
-with info_right:
+with info_col3:
     st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
-    alert_df = df[(df["변동률(%)"].notna()) & ((df["변동률(%)"].abs() >= 3) | (df["평균거래량대비"].fillna(0) >= 1.8))][["이름", "티커", "변동률(%)", "평균거래량대비"]]
+    alert_df = df[
+        (df["변동률(%)"].notna())
+        & ((df["변동률(%)"].abs() >= 3) | (df["평균거래량대비"].fillna(0) >= 1.8))
+    ][["이름", "티커", "변동률(%)", "평균거래량대비"]]
     if not alert_df.empty:
-        st.dataframe(styled_df(alert_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=205)
+        st.dataframe(
+            styled_df(alert_df, color_subset=["변동률(%)"]),
+            use_container_width=True,
+            hide_index=True,
+            height=255,
+        )
     else:
-        st.success("급등락/거래량 이상 신호 없음")
+        st.markdown("<div class='panel' style='min-height:255px;'>급등락/거래량 이상 신호 없음</div>", unsafe_allow_html=True)
 
+with info_col4:
     st.markdown('<div class="panel-title">🎯 현재 관심 후보</div>', unsafe_allow_html=True)
     if not candidate_df.empty:
-        st.dataframe(candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]], use_container_width=True, hide_index=True, height=205)
+        st.dataframe(
+            candidate_df.head(6)[["이름", "티커", "신호", "점수", "근거"]],
+            use_container_width=True,
+            hide_index=True,
+            height=255,
+        )
     else:
-        st.info("관심 후보 데이터 없음")
+        st.markdown("<div class='panel' style='min-height:255px;'>관심 후보 데이터 없음</div>", unsafe_allow_html=True)
 
 # =========================================================
 # Search left + focus monitor right: this uses the red empty area
