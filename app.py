@@ -1,4 +1,5 @@
 import html
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -115,6 +116,18 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 .focus-price {{ font-weight: 850; font-size: 0.98rem; text-align: right; color: {TEXT_MAIN}; }}
 .focus-stat {{ color: {TEXT_SUB}; font-size: 0.66rem; }}
 .focus-delete button {{ height: 28px !important; min-height: 28px !important; padding: 2px 6px !important; font-size: 0.70rem !important; }}
+
+
+.settings-card { background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 16px; padding: 10px 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+.settings-title { font-weight: 900; font-size: 0.86rem; color: {TEXT_MAIN}; margin-bottom: 6px; }
+
+/* Dark mode hardening for Streamlit native widgets */
+[data-testid="stDataFrame"] div, [data-testid="stTable"] div { color: {TEXT_MAIN}; }
+[data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] { background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }
+[data-testid="stDataFrame"] [role="columnheader"] { font-weight: 800 !important; }
+
+.tv-card { background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 17px; padding: 10px; margin-bottom: 13px; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+.tv-caption { color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }
 
 /* top settings checkbox visibility */
 label[data-testid="stWidgetLabel"] p {{ font-weight: 850 !important; color: {TEXT_MAIN} !important; }}
@@ -275,6 +288,119 @@ def get_market_news() -> pd.DataFrame:
                 category = "국제정세"
             news_list.append({"분위기": sentiment, "분류": category, "뉴스 제목": title, "링크": entry.link, "시간": entry.get("published", "")})
     return pd.DataFrame(news_list[:16])
+
+
+
+def koreanize_headline(title: str) -> str:
+    t = str(title)
+    low = t.lower()
+    topic = "미국 증시"
+    if any(w in low for w in ["nvidia", "amd", "broadcom", "semiconductor", "chip", "ai"]):
+        topic = "AI/반도체"
+    elif any(w in low for w in ["fed", "powell", "rate", "yield", "treasury"]):
+        topic = "연준/금리"
+    elif any(w in low for w in ["inflation", "cpi", "ppi", "jobs", "payroll"]):
+        topic = "거시지표"
+    elif any(w in low for w in ["oil", "gold", "dollar", "bitcoin", "crypto"]):
+        topic = "원자재/달러/코인"
+    elif any(w in low for w in ["tariff", "china", "iran", "israel", "war", "trade"]):
+        topic = "국제정세/정책"
+    tone = "중립 흐름"
+    if any(w in low for w in ["surge", "rally", "gain", "rise", "up", "beat", "strong", "record", "outperform"]):
+        tone = "긍정 신호"
+    elif any(w in low for w in ["fall", "drop", "down", "miss", "weak", "risk", "fear", "selloff", "cut"]):
+        tone = "주의 신호"
+    short = re.sub(r"\s+", " ", t).strip()
+    if len(short) > 95:
+        short = short[:92] + "..."
+    return f"[{topic}·{tone}] {short}"
+
+
+def news_to_korean_df(raw_df: pd.DataFrame) -> pd.DataFrame:
+    if raw_df.empty:
+        return raw_df
+    df_copy = raw_df.copy()
+    df_copy["표시 제목"] = df_copy["뉴스 제목"].apply(koreanize_headline)
+    return df_copy
+
+
+@st.cache_data(ttl=180)
+def get_saveticker_news() -> pd.DataFrame:
+    base = "https://www.saveticker.com/app/news"
+    try:
+        r = requests.get(base, headers={"User-Agent": "Mozilla/5.0"}, timeout=7)
+        text = r.text or ""
+        found = re.findall(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]{12,180})</a>', text, flags=re.I)
+        rows = []
+        for href, title in found[:12]:
+            clean = re.sub(r"\s+", " ", html.unescape(title)).strip()
+            if clean and "뉴스" not in clean and len(clean) > 10:
+                link = href if href.startswith("http") else "https://www.saveticker.com" + href
+                rows.append({"분위기": "🟡 중립", "분류": "세이브티커", "뉴스 제목": clean, "표시 제목": koreanize_headline(clean), "링크": link, "시간": ""})
+        if rows:
+            return pd.DataFrame(rows[:12])
+    except Exception:
+        pass
+    fallback = get_market_news()
+    fallback = news_to_korean_df(fallback)
+    if not fallback.empty:
+        fallback["분류"] = fallback["분류"].astype(str) + " / 세이브티커 대체"
+    return fallback
+
+
+def tradingview_symbol(symbol: str) -> str:
+    mapping = {
+        "QQQ": "NASDAQ:QQQ", "^IXIC": "NASDAQ:IXIC", "^GSPC": "SP:SPX",
+        "NQ=F": "CME_MINI:NQ1!", "ES=F": "CME_MINI:ES1!", "^VIX": "TVC:VIX",
+        "^TNX": "TVC:US10Y", "DX-Y.NYB": "TVC:DXY", "GC=F": "COMEX:GC1!",
+        "CL=F": "NYMEX:CL1!", "BTC-USD": "BINANCE:BTCUSDT", "SMH": "NASDAQ:SMH",
+        "^SOX": "NASDAQ:SOX", "SPY": "AMEX:SPY", "TQQQ": "NASDAQ:TQQQ", "SOXL": "AMEX:SOXL",
+    }
+    if symbol in mapping:
+        return mapping[symbol]
+    clean = symbol.replace("-USD", "USDT")
+    if clean.endswith("USDT"):
+        return f"BINANCE:{clean}"
+    if clean.startswith("^"):
+        return clean.replace("^", "NASDAQ:")
+    return f"NASDAQ:{clean}"
+
+
+def render_tradingview_widget(symbol: str, theme_mode: str, height: int = 430):
+    tv_symbol = tradingview_symbol(symbol)
+    tv_theme = "light" if theme_mode == "라이트 모드" else "dark"
+    widget = f'''
+    <div class="tradingview-widget-container" style="height:{height}px;width:100%;">
+      <div id="tradingview_chart" style="height:{height}px;width:100%;"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
+        "autosize": true,
+        "symbol": "{tv_symbol}",
+        "interval": "5",
+        "timezone": "Asia/Seoul",
+        "theme": "{tv_theme}",
+        "style": "1",
+        "locale": "kr",
+        "enable_publishing": false,
+        "hide_top_toolbar": false,
+        "hide_legend": false,
+        "allow_symbol_change": true,
+        "save_image": false,
+        "studies": ["Volume@tv-basicstudies", "MASimple@tv-basicstudies"],
+        "container_id": "tradingview_chart"
+      }});
+      </script>
+    </div>
+    '''
+    components.html(widget, height=height + 8, scrolling=False)
+
+
+def styled_df(dataframe: pd.DataFrame, color_subset=None):
+    styler = dataframe.style.set_properties(**{"background-color": INPUT_BG, "color": TEXT_MAIN, "border-color": BORDER})
+    if color_subset:
+        styler = styler.map(color_change, subset=color_subset)
+    return styler
 
 
 @st.cache_data(ttl=300)
@@ -458,7 +584,7 @@ def score_candidates(dataframe, news_df, vix_price, tnx_change, smh_change):
 # Load data
 # =========================================================
 df = get_price_data(tickers)
-news_df = get_market_news()
+news_df = get_saveticker_news()
 qqq_price, qqq_change = get_metric(df, "QQQ")
 spy_price, spy_change = get_metric(df, "^GSPC")
 nasdaq_price, nasdaq_change = get_metric(df, "^IXIC")
@@ -570,7 +696,7 @@ if st.session_state.auto_refresh:
     st_autorefresh(interval=st.session_state.refresh_seconds * 1000, key="auto_refresh")
 
 with header_right:
-    news_items = news_df.head(4)["뉴스 제목"].tolist() if not news_df.empty else ["뉴스 데이터를 불러오는 중입니다."]
+    news_items = news_df.head(4)["표시 제목"].tolist() if (not news_df.empty and "표시 제목" in news_df.columns) else (news_df.head(4)["뉴스 제목"].tolist() if not news_df.empty else ["뉴스 데이터를 불러오는 중입니다."])
     while len(news_items) < 4:
         news_items.append("뉴스 데이터를 불러오는 중입니다.")
     safe_news = [html.escape(str(item)) for item in news_items[:4]]
@@ -595,24 +721,66 @@ with header_right:
 if hasattr(st, "dialog"):
     @st.dialog("오늘의 실시간 시장현황")
     def market_dialog():
-        top_candidate = "관심 후보 없음"
+        top_candidates = "관심 후보 없음"
         if not candidate_df.empty:
-            top = candidate_df.iloc[0]
-            top_candidate = f"{top['이름']}({top['티커']}) - {top['신호']} / 근거: {top['근거']}"
+            top_candidates = "\n".join([
+                f"- {row['이름']}({row['티커']}): {row['신호']} / {row['근거']}"
+                for _, row in candidate_df.head(3).iterrows()
+            ])
+        news_lines = "뉴스 데이터 없음"
+        if not news_df.empty:
+            title_col = "표시 제목" if "표시 제목" in news_df.columns else "뉴스 제목"
+            news_lines = "\n".join([f"- {t}" for t in news_df[title_col].head(4).tolist()])
+        sector_lines = []
+        sector_map = {
+            "기술/나스닥": qqq_change,
+            "반도체": smh_change,
+            "대형주/S&P500": spy_change,
+            "가상자산": btc_change,
+            "원유": get_metric(df, "CL=F")[1],
+            "금": get_metric(df, "GC=F")[1],
+            "달러": dxy_change,
+            "금리": tnx_change,
+        }
+        for sector, change_value in sector_map.items():
+            if change_value is None or pd.isna(change_value):
+                sector_lines.append(f"- {sector}: 데이터 확인 필요")
+            elif change_value >= 1:
+                sector_lines.append(f"- {sector}: 강세/우호 흐름 ({change_value}%)")
+            elif change_value <= -1:
+                sector_lines.append(f"- {sector}: 약세/부담 흐름 ({change_value}%)")
+            else:
+                sector_lines.append(f"- {sector}: 중립권 등락 ({change_value}%)")
+        risk_notes = []
+        if vix_price is not None:
+            risk_notes.append("VIX 안정권" if vix_price < 18 else "VIX 경계권" if vix_price < 25 else "VIX 고위험권")
+        if tnx_change is not None:
+            risk_notes.append("금리 상승 부담 제한" if tnx_change <= 0.5 else "금리 상승 부담 존재")
+        if dxy_change is not None:
+            risk_notes.append("달러 강세 부담 제한" if dxy_change <= 0.5 else "달러 강세 부담 존재")
         st.markdown(f"""
 ### 오늘의 실시간 시장현황
-**종합 판단:** {market_emoji} {market_status}
+
+**종합 판단:** {market_emoji} {market_status}  
+**요약:** {market_comment}
 
 **핵심 지표**  
 QQQ {qqq_change}% · 나스닥 {nasdaq_change}% · S&P500 {spy_change}% · VIX {vix_price} · 10Y {tnx_price} · DXY {dxy_price} · SMH {smh_change}% · BTC {btc_change}%
 
-**시장 해석**  
-{market_comment}
+**섹터/자산별 흐름**  
+{chr(10).join(sector_lines)}
+
+**리스크 체크**  
+- {" / ".join(risk_notes) if risk_notes else "리스크 지표 데이터 확인 필요"}
+
+**주요 뉴스 헤드라인**  
+{news_lines}
 
 **현재 데이터 기반 관심 후보**  
-{top_candidate}
+{top_candidates}
 
-이 평가는 무료 지연 데이터와 뉴스 헤드라인 기반의 시장 관찰용 신호입니다.
+**해석 메모**  
+무료 지연 데이터, 주요 헤드라인, 지수·섹터·금리·달러·원자재 흐름을 함께 본 시장 관찰용 신호입니다. 단기 매매 지시가 아니라 장기/스윙 관점의 환경 점검용입니다.
 """)
         st.caption(f"생성 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
     if st.button("📌 오늘의 실시간 시장현황 보기", use_container_width=True):
@@ -641,13 +809,10 @@ with left:
     st.markdown('<div class="panel-title">📊 실시간 차트</div>', unsafe_allow_html=True)
     selected_name = st.selectbox("차트 종목", list(tickers.keys()), index=0, label_visibility="collapsed")
     selected_symbol = tickers[selected_name]
-    chart_data = get_chart_data(selected_symbol, st.session_state.chart_period, st.session_state.chart_interval)
-    if not chart_data.empty:
-        fig = go.Figure(go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"], name=selected_symbol))
-        fig.update_layout(title=f"{selected_name} ({selected_symbol})", template=TEMPLATE, height=360, xaxis_rangeslider_visible=False, margin=dict(l=12, r=12, t=42, b=12), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor=PLOT_BG, font=dict(color=TEXT_MAIN))
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("차트 데이터를 불러오지 못했습니다.")
+    st.markdown(f"<div class='tv-caption'>TradingView 실시간 차트 · {selected_name} ({selected_symbol})</div>", unsafe_allow_html=True)
+    st.markdown('<div class="tv-card">', unsafe_allow_html=True)
+    render_tradingview_widget(selected_symbol, st.session_state.theme_mode, height=430)
+    st.markdown('</div>', unsafe_allow_html=True)
 with middle:
     st.markdown('<div class="panel-title">🧭 시장 종합 판단</div>', unsafe_allow_html=True)
     vol_status = "높음" if vix_price and vix_price > 25 else "보통" if vix_price and vix_price > 18 else "낮음"
@@ -666,12 +831,12 @@ with right:
     st.markdown('<div class="panel-title">🚨 급등락 / 거래량 감지</div>', unsafe_allow_html=True)
     alert_df = df[(df["변동률(%)"].notna()) & ((df["변동률(%)"].abs() >= 3) | (df["평균거래량대비"].fillna(0) >= 1.8))][["이름", "티커", "변동률(%)", "평균거래량대비"]]
     if not alert_df.empty:
-        st.dataframe(alert_df.style.map(color_change, subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=235)
+        st.dataframe(styled_df(alert_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=235)
     else:
         st.success("급등락/거래량 이상 신호 없음")
     st.markdown('<div class="panel-title">🎯 현재 관심 후보</div>', unsafe_allow_html=True)
     if not candidate_df.empty:
-        st.dataframe(candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]], use_container_width=True, hide_index=True, height=235)
+        st.dataframe(styled_df(candidate_df.head(5)[["이름", "티커", "신호", "점수", "근거"]]), use_container_width=True, hide_index=True, height=235)
     else:
         st.info("관심 후보 데이터 없음")
 
@@ -721,7 +886,7 @@ with search_left:
                     news_cols_for_stock = st.columns(2)
                     for idx, news in enumerate(stock_news[:4]):
                         with news_cols_for_stock[idx % 2]:
-                            st.markdown(f"<div class='news-card'><div class='news-title'><a href='{news['link']}' target='_blank'>{news['title']}</a></div><div class='news-link'>뉴스 보기 →</div><div class='news-meta'>{news['time']}</div></div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='news-card'><div class='news-title'><a href='{news['link']}' target='_blank'>{koreanize_headline(news['title'])}</a></div><div class='news-link'>뉴스 보기 →</div><div class='news-meta'>{news['time']}</div></div>", unsafe_allow_html=True)
                 else:
                     st.info("해당 종목 관련 뉴스를 불러오지 못했습니다.")
                 st.caption("이 판단은 데이터 기반 시장 관찰 신호이며, 투자 권유 또는 투자 자문이 아닙니다.")
@@ -762,10 +927,10 @@ market_df = df[df["티커"].isin(market_assets.values())].copy()
 stock_df = df[df["티커"].isin(watchlist_assets.values())].copy()
 with table_left:
     st.caption("지수 / 거시 / 선물 / 원자재 / 섹터")
-    st.dataframe(market_df.style.map(color_change, subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=430)
+    st.dataframe(styled_df(market_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=430)
 with table_right:
     st.caption("Watchlist / 주요 관심 종목")
-    st.dataframe(stock_df.style.map(color_change, subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=430)
+    st.dataframe(styled_df(stock_df, color_subset=["변동률(%)"]), use_container_width=True, hide_index=True, height=430)
 
 st.caption(f"마지막 갱신 시각: {get_kst_now().strftime('%Y-%m-%d %H:%M:%S')} KST")
 st.caption("본 대시보드는 정보 제공 목적이며, 투자 조언이 아닙니다. 표시되는 관심 후보와 종목 분석은 매수·매도 추천이 아니라 시장 관찰용 신호입니다.")
