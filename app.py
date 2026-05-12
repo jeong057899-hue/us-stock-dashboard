@@ -135,52 +135,52 @@ label[data-testid="stWidgetLabel"] p {{ font-weight: 850 !important; color: {TEX
 
 
 /* Header layout final optimization */
-.main-title-compact {
+.main-title-compact {{
     font-size: clamp(1.35rem, 1.65vw, 2.05rem) !important;
     font-weight: 900;
     line-height: 1.12;
     margin: 0 0 0.25rem 0;
     color: {TEXT_MAIN};
-}
-.main-subtitle-compact {
+}}
+.main-subtitle-compact {{
     font-size: 0.78rem;
     color: {TEXT_SUB};
     line-height: 1.35;
-}
-.breaking-card {
+}}
+.breaking-card {{
     background: {PANEL_BG};
     border: 1px solid {BORDER};
     border-radius: 16px;
     padding: 10px 12px;
     min-height: 122px;
     box-shadow: 0 10px 24px rgba(0,0,0,0.18);
-}
-.breaking-title {
+}}
+.breaking-title {{
     font-weight: 900;
     font-size: 0.82rem;
     color: {TEXT_MAIN};
     margin-bottom: 7px;
-}
-.header-right-stack {
+}}
+.header-right-stack {{
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-.settings-card {
+}}
+.settings-card {{
     background: {PANEL_BG};
     border: 1px solid {BORDER};
     border-radius: 16px;
     padding: 8px 10px;
     box-shadow: 0 10px 24px rgba(0,0,0,0.18);
-}
-.settings-title {
+}}
+.settings-title {{
     font-weight: 900;
     font-size: 0.78rem;
     color: {TEXT_MAIN};
     margin-bottom: 3px;
-}
-.settings-card [data-testid="stVerticalBlock"] { gap: 0.25rem !important; }
-.settings-card label p { font-size: 0.72rem !important; }
+}}
+.settings-card [data-testid="stVerticalBlock"] {{ gap: 0.25rem !important; }}
+.settings-card label p {{ font-size: 0.72rem !important; }}
 </style>
 """,
     unsafe_allow_html=True,
