@@ -127,12 +127,60 @@ div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 13p
 [data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataFrame"] [role="columnheader"] {{ background-color: {INPUT_BG} !important; color: {TEXT_MAIN} !important; }}
 [data-testid="stDataFrame"] [role="columnheader"] {{ font-weight: 800 !important; }}
 
-.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 14px; padding: 6px; margin-bottom: 8px; box-shadow: 0 8px 18px rgba(0,0,0,0.16); min-height: 0; }}
-.tv-caption {{ font-size: 0.72rem; color: {TEXT_SUB}; margin: 2px 0 4px 2px; line-height: 1.2; }}
-.tv-caption {{ color: {TEXT_SUB}; font-size: 0.75rem; margin-top: -4px; margin-bottom: 8px; }}
+.tv-card {{ background: {PANEL_BG}; border: 1px solid {BORDER}; border-radius: 14px; padding: 4px; margin-bottom: 4px; box-shadow: 0 8px 18px rgba(0,0,0,0.16); min-height: 0; }}
+.tv-caption {{ color: {TEXT_SUB}; font-size: 0.72rem; margin: 0 0 3px 2px; line-height: 1.2; }}
 
 /* top settings checkbox visibility */
 label[data-testid="stWidgetLabel"] p {{ font-weight: 850 !important; color: {TEXT_MAIN} !important; }}
+
+
+/* Header layout final optimization */
+.main-title-compact {
+    font-size: clamp(1.35rem, 1.65vw, 2.05rem) !important;
+    font-weight: 900;
+    line-height: 1.12;
+    margin: 0 0 0.25rem 0;
+    color: {TEXT_MAIN};
+}
+.main-subtitle-compact {
+    font-size: 0.78rem;
+    color: {TEXT_SUB};
+    line-height: 1.35;
+}
+.breaking-card {
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
+    border-radius: 16px;
+    padding: 10px 12px;
+    min-height: 122px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+.breaking-title {
+    font-weight: 900;
+    font-size: 0.82rem;
+    color: {TEXT_MAIN};
+    margin-bottom: 7px;
+}
+.header-right-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.settings-card {
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
+    border-radius: 16px;
+    padding: 8px 10px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+.settings-title {
+    font-weight: 900;
+    font-size: 0.78rem;
+    color: {TEXT_MAIN};
+    margin-bottom: 3px;
+}
+.settings-card [data-testid="stVerticalBlock"] { gap: 0.25rem !important; }
+.settings-card label p { font-size: 0.72rem !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -551,6 +599,7 @@ def render_tradingview_widget(symbol: str, theme_mode: str, interval: str = "5m"
         "&studies=%5B%5D"
         "&hideideas=1"
         "&calendar=0"
+        "&session=extended"
     )
 
     widget = f"""
@@ -802,14 +851,94 @@ def build_market_comments():
 market_comments = build_market_comments()
 
 # =========================================================
-# Header: title + visible settings + ticker
+# Header: compact title + breaking news + compact news/comment + right settings
 # =========================================================
-header_left, header_settings, header_right = st.columns([1.22, 1.30, 1.35])
-with header_left:
-    st.title("📈 나스닥 시황 모니터링 대시보드")
-    st.caption("나스닥100 · 성장주 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 시장 판단 시스템")
+header_left, header_breaking, header_right = st.columns([0.92, 1.48, 1.22])
 
-with header_settings:
+with header_left:
+    st.markdown(
+        """
+        <div class="main-title-compact">📈 나스닥 시황 모니터링 대시보드</div>
+        <div class="main-subtitle-compact">나스닥100 · 성장주 · 반도체 · 금리 · 달러 · 원자재 · 뉴스 기반 시장 판단 시스템</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# Header news source preparation
+if not news_df.empty:
+    title_col = "표시 제목" if "표시 제목" in news_df.columns else "뉴스 제목"
+    header_news_items = news_df.head(8)[title_col].astype(str).tolist()
+    header_news_links = news_df.head(8)["링크"].astype(str).tolist() if "링크" in news_df.columns else ["#"] * len(header_news_items)
+else:
+    header_news_items = ["뉴스 데이터를 불러오는 중입니다."]
+    header_news_links = ["#"]
+
+while len(header_news_items) < 8:
+    header_news_items.append("뉴스 데이터를 불러오는 중입니다.")
+    header_news_links.append("#")
+
+safe_breaking = [html.escape(str(item)) for item in header_news_items[:6]]
+safe_breaking_links = [html.escape(str(link)) for link in header_news_links[:6]]
+safe_news = [html.escape(str(item)) for item in header_news_items[:4]]
+safe_news_links = [html.escape(str(link)) for link in header_news_links[:4]]
+safe_comments = [html.escape(str(item)) for item in market_comments[:4]]
+
+with header_breaking:
+    breaking_html = f"""
+    <html><head><style>
+    body {{ margin:0; background:transparent; font-family:Arial,sans-serif; color:{TEXT_MAIN}; }}
+    .box {{ width:100%; min-height:118px; background:{TICKER_BG}; border:1px solid {BORDER}; border-radius:18px; padding:12px 14px; box-sizing:border-box; overflow:hidden; }}
+    .head {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }}
+    .title {{ font-size:13px; font-weight:900; color:{TEXT_MAIN}; }}
+    .hint {{ font-size:11px; color:{TEXT_SUB}; }}
+    .window {{ height:72px; overflow:hidden; border-top:1px solid {BORDER}; padding-top:7px; }}
+    .track {{ animation: breakingSlide 18s infinite; }}
+    .item {{ height:24px; line-height:24px; font-size:13px; color:{TEXT_MAIN}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+    .item a {{ color:{TEXT_MAIN}; text-decoration:none; }}
+    .item a:hover {{ color:#38bdf8; text-decoration:underline; }}
+    @keyframes breakingSlide {{
+        0% {{transform:translateY(0)}} 16% {{transform:translateY(0)}}
+        20% {{transform:translateY(-24px)}} 36% {{transform:translateY(-24px)}}
+        40% {{transform:translateY(-48px)}} 56% {{transform:translateY(-48px)}}
+        60% {{transform:translateY(-72px)}} 76% {{transform:translateY(-72px)}}
+        80% {{transform:translateY(-96px)}} 96% {{transform:translateY(-96px)}}
+        100% {{transform:translateY(0)}}
+    }}
+    </style></head><body>
+    <div class="box">
+      <div class="head"><div class="title">⚡ 실시간 속보</div><div class="hint">헤드라인 클릭 시 원문 새 탭</div></div>
+      <div class="window"><div class="track">
+        <div class="item"><a href="{safe_breaking_links[0]}" target="_blank" rel="noopener noreferrer">{safe_breaking[0]}</a></div>
+        <div class="item"><a href="{safe_breaking_links[1]}" target="_blank" rel="noopener noreferrer">{safe_breaking[1]}</a></div>
+        <div class="item"><a href="{safe_breaking_links[2]}" target="_blank" rel="noopener noreferrer">{safe_breaking[2]}</a></div>
+        <div class="item"><a href="{safe_breaking_links[3]}" target="_blank" rel="noopener noreferrer">{safe_breaking[3]}</a></div>
+        <div class="item"><a href="{safe_breaking_links[4]}" target="_blank" rel="noopener noreferrer">{safe_breaking[4]}</a></div>
+        <div class="item"><a href="{safe_breaking_links[5]}" target="_blank" rel="noopener noreferrer">{safe_breaking[5]}</a></div>
+      </div></div>
+    </div></body></html>
+    """
+    components.html(breaking_html, height=122)
+
+with header_right:
+    rolling_html = f"""
+    <html><head><style>
+    body {{ margin:0; background:transparent; font-family:Arial,sans-serif; color:{TEXT_MAIN}; }}
+    .ticker-wrap {{ width:100%; min-height:92px; background:{TICKER_BG}; border:1px solid {BORDER}; border-radius:18px; padding:9px 12px; box-sizing:border-box; overflow:hidden; }}
+    .top-row {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }}
+    .status-pill {{ display:inline-flex; align-items:center; padding:5px 12px; border-radius:999px; background:rgba(34,197,94,0.10); border:1px solid rgba(34,197,94,0.35); color:#22c55e; font-weight:800; font-size:13px; }}
+    .time {{ font-size:11px; color:{TEXT_SUB}; }}
+    .ticker-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }}
+    .ticker-title {{ font-size:11px; color:{TEXT_SUB}; margin-bottom:4px; font-weight:800; }}
+    .ticker-window {{ height:22px; overflow:hidden; border-top:1px solid {BORDER}; padding-top:5px; }}
+    .ticker-track {{ animation: slideTicker 12s infinite; }}
+    .ticker-item {{ height:22px; line-height:22px; font-size:12px; color:{TEXT_MAIN}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+    .ticker-item a {{ color:{TEXT_MAIN}; text-decoration:none; }}
+    .ticker-item a:hover {{ color:#38bdf8; text-decoration:underline; }}
+    @keyframes slideTicker {{ 0% {{transform:translateY(0)}} 22% {{transform:translateY(0)}} 25% {{transform:translateY(-22px)}} 47% {{transform:translateY(-22px)}} 50% {{transform:translateY(-44px)}} 72% {{transform:translateY(-44px)}} 75% {{transform:translateY(-66px)}} 97% {{transform:translateY(-66px)}} 100% {{transform:translateY(0)}} }}
+    </style></head><body><div class="ticker-wrap"><div class="top-row"><div class="status-pill">{market_emoji} {market_status}</div><div class="time">{get_kst_now().strftime('%H:%M:%S')} KST</div></div><div class="ticker-grid"><div><div class="ticker-title">📰 주요 뉴스</div><div class="ticker-window"><div class="ticker-track"><div class="ticker-item"><a href="{safe_news_links[0]}" target="_blank" rel="noopener noreferrer">{safe_news[0]}</a></div><div class="ticker-item"><a href="{safe_news_links[1]}" target="_blank" rel="noopener noreferrer">{safe_news[1]}</a></div><div class="ticker-item"><a href="{safe_news_links[2]}" target="_blank" rel="noopener noreferrer">{safe_news[2]}</a></div><div class="ticker-item"><a href="{safe_news_links[3]}" target="_blank" rel="noopener noreferrer">{safe_news[3]}</a></div></div></div></div><div><div class="ticker-title">🧠 시장 코멘트</div><div class="ticker-window"><div class="ticker-track"><div class="ticker-item">{safe_comments[0]}</div><div class="ticker-item">{safe_comments[1]}</div><div class="ticker-item">{safe_comments[2]}</div><div class="ticker-item">{safe_comments[3]}</div></div></div></div></div></div></body></html>
+    """
+    components.html(rolling_html, height=96)
+
     st.markdown('<div class="settings-card">', unsafe_allow_html=True)
     st.markdown('<div class="settings-title">⚙️ 대시보드 설정</div>', unsafe_allow_html=True)
     hs1, hs2, hs3 = st.columns([0.86, 0.72, 0.72])
@@ -835,7 +964,6 @@ with header_settings:
             index=refresh_options.index(current_refresh),
             key="refresh_seconds_header",
         )
-
     hs4, hs5, hs6 = st.columns([0.72, 0.72, 0.95])
     with hs4:
         chart_period_options = ["1d", "5d", "1mo", "3mo", "6mo", "1y"]
@@ -863,33 +991,11 @@ with header_settings:
     if st.button("🔄 수동 새로고침", key="manual_refresh_header", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
+    st.caption("차트는 TradingView 자체 실시간 · 전체 데이터 갱신은 30~60초 권장")
     st.markdown('</div>', unsafe_allow_html=True)
 
 if st.session_state.auto_refresh:
     st_autorefresh(interval=st.session_state.refresh_seconds * 1000, key="auto_refresh")
-
-with header_right:
-    news_items = news_df.head(4)["표시 제목"].tolist() if (not news_df.empty and "표시 제목" in news_df.columns) else (news_df.head(4)["뉴스 제목"].tolist() if not news_df.empty else ["뉴스 데이터를 불러오는 중입니다."])
-    while len(news_items) < 4:
-        news_items.append("뉴스 데이터를 불러오는 중입니다.")
-    safe_news = [html.escape(str(item)) for item in news_items[:4]]
-    safe_comments = [html.escape(str(item)) for item in market_comments[:4]]
-    rolling_html = f"""
-    <html><head><style>
-    body {{ margin:0; background:transparent; font-family:Arial,sans-serif; color:{TEXT_MAIN}; }}
-    .ticker-wrap {{ width:100%; min-height:120px; background:{TICKER_BG}; border:1px solid {BORDER}; border-radius:18px; padding:12px 14px; box-sizing:border-box; overflow:hidden; }}
-    .top-row {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }}
-    .status-pill {{ display:inline-flex; align-items:center; padding:7px 16px; border-radius:999px; background:rgba(34,197,94,0.10); border:1px solid rgba(34,197,94,0.35); color:#22c55e; font-weight:800; font-size:15px; }}
-    .time {{ font-size:12px; color:{TEXT_SUB}; }}
-    .ticker-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }}
-    .ticker-title {{ font-size:12px; color:{TEXT_SUB}; margin-bottom:6px; font-weight:800; }}
-    .ticker-window {{ height:24px; overflow:hidden; border-top:1px solid {BORDER}; padding-top:6px; }}
-    .ticker-track {{ animation: slideTicker 12s infinite; }}
-    .ticker-item {{ height:24px; line-height:24px; font-size:13px; color:{TEXT_MAIN}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
-    @keyframes slideTicker {{ 0% {{transform:translateY(0)}} 22% {{transform:translateY(0)}} 25% {{transform:translateY(-24px)}} 47% {{transform:translateY(-24px)}} 50% {{transform:translateY(-48px)}} 72% {{transform:translateY(-48px)}} 75% {{transform:translateY(-72px)}} 97% {{transform:translateY(-72px)}} 100% {{transform:translateY(0)}} }}
-    </style></head><body><div class="ticker-wrap"><div class="top-row"><div class="status-pill">{market_emoji} {market_status}</div><div class="time">{get_kst_now().strftime('%H:%M:%S')} KST</div></div><div class="ticker-grid"><div><div class="ticker-title">📰 주요 뉴스</div><div class="ticker-window"><div class="ticker-track"><div class="ticker-item">{safe_news[0]}</div><div class="ticker-item">{safe_news[1]}</div><div class="ticker-item">{safe_news[2]}</div><div class="ticker-item">{safe_news[3]}</div></div></div></div><div><div class="ticker-title">🧠 시장 코멘트</div><div class="ticker-window"><div class="ticker-track"><div class="ticker-item">{safe_comments[0]}</div><div class="ticker-item">{safe_comments[1]}</div><div class="ticker-item">{safe_comments[2]}</div><div class="ticker-item">{safe_comments[3]}</div></div></div></div></div></div></body></html>
-    """
-    components.html(rolling_html, height=126)
 
 if hasattr(st, "dialog"):
     @st.dialog("오늘의 실시간 시장현황")
@@ -1001,7 +1107,7 @@ for chart_idx in range(4):
         tv_symbol_for_caption = resolved["tradingview"]
         yf_symbol_for_caption = resolved["yfinance"]
         st.markdown(
-            f"<div class='tv-caption'>TradingView 실시간 차트 · {html.escape(str(resolved['label']))} · {html.escape(str(tv_symbol_for_caption))} · 한국시간(KST)</div>",
+            f"<div class='tv-caption'>TradingView 실시간 차트 · {html.escape(str(resolved['label']))} · {html.escape(str(tv_symbol_for_caption))} · 한국시간(KST) · 프리/애프터마켓 표시</div>",
             unsafe_allow_html=True,
         )
         st.markdown('<div class="tv-card">', unsafe_allow_html=True)
